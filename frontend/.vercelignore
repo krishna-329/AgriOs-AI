@@ -1,0 +1,8 @@
+node_modules
+.next
+.runtime
+.vercel
+.env*
+*.log
+*.tsbuildinfo
+public/images/silo.jpg

@@ -1,0 +1,10 @@
+.env*
+.venv
+.runtime
+.vercel
+__pycache__
+.pytest_cache
+*.db
+*.db-*
+*.log
+tests

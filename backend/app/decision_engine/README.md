@@ -1,0 +1,1 @@
+Phase 5: Rank events using transparent severity, urgency and economic-impact weights, with calibrated probability only where available. Missing probability must remain unknown; use a separately labeled rule-based priority. Score is a prototype ordering mechanism, not a scientifically validated risk percentage.

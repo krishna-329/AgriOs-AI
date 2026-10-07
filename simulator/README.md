@@ -1,0 +1,2 @@
+# Simulator boundary — Phase 4
+Future Python simulator posts to the same REST ingestion service as devices. Every payload sets source=simulated_iot. Scenarios: normal, gradually falling moisture/rising temperature, sensor malfunction, and grain activity/environment deterioration. Use seeded time-series progression, not instantaneous switches. MQTT will be a transport adapter. No simulator is active in Phase 1.

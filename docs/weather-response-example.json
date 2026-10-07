@@ -1,0 +1,53 @@
+{
+  "latitude": 17.385,
+  "longitude": 78.4867,
+  "temperature": 30.9,
+  "humidity": 41.0,
+  "rain_probability": 73.0,
+  "rain_probability_period": "today",
+  "wind_speed": 9.2,
+  "condition": "Mainly clear",
+  "source": "weather_api",
+  "provider": "Open-Meteo",
+  "timestamp": "2026-10-07T05:00:00Z",
+  "timezone": "Asia/Kolkata",
+  "temperature_unit": "°C",
+  "wind_speed_unit": "km/h",
+  "forecast": [
+    {
+      "date": "2026-10-07",
+      "temperature_max": 31.7,
+      "temperature_min": 24.2,
+      "rain_probability": 73.0,
+      "condition": "Dense drizzle"
+    },
+    {
+      "date": "2026-10-08",
+      "temperature_max": 32.4,
+      "temperature_min": 23.8,
+      "rain_probability": 52.0,
+      "condition": "Drizzle"
+    },
+    {
+      "date": "2026-10-09",
+      "temperature_max": 33.5,
+      "temperature_min": 24.2,
+      "rain_probability": 8.0,
+      "condition": "Light drizzle"
+    },
+    {
+      "date": "2026-10-10",
+      "temperature_max": 33.7,
+      "temperature_min": 24.5,
+      "rain_probability": 0.0,
+      "condition": "Overcast"
+    },
+    {
+      "date": "2026-10-11",
+      "temperature_max": 33.3,
+      "temperature_min": 24.8,
+      "rain_probability": 8.0,
+      "condition": "Clear sky"
+    }
+  ]
+}

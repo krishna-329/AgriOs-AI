@@ -1,0 +1,1 @@
+Phase 3: PuLP linear programming. Enforce land, water, fertilizer and budget limits. Objectives: profit, yield, water, balanced. Minimum-water plans require an explicit production target or minimum cultivated area, otherwise the mathematical optimum is no planting. Report infeasibility and never relax constraints silently.

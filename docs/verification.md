@@ -1,0 +1,11 @@
+# Foundation verification — 2026-10-05
+- Backend pytest: 2 passed. One upstream Starlette/httpx deprecation warning; no test failures.
+- Live FastAPI health endpoint: database connected.
+- Live API: created a clearly named demo profile and retrieved the same record.
+- Frontend TypeScript check: passed.
+- Next.js production build: passed.
+- Production frontend started on localhost:3000; backend on 127.0.0.1:8000.
+- All eight page routes returned HTTP 200.
+- Landing page inspected in the in-app browser, including a screenshot review.
+- Local persistence uses SQLite. PostgreSQL Compose is configured but untested because Docker is unavailable.
+- ML, optimizer, ingestion, authentication and realtime behavior are future phases; they were not claimed or tested as implemented.

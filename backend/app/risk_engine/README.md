@@ -1,0 +1,1 @@
+Phase 5: Accept validated evidence from modules and emit RiskEvent contracts. Quarantine anomalous readings; sensor faults produce inspection actions, not strong agronomic advice. Deduplicate open events by farm, asset and risk type.
