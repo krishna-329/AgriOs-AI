@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Droplets, Thermometer, Activity, Leaf } from "lucide-react";
 import { useSensorHistory } from "@/components/use-sensor-history";
 import { SensorHistoryChart } from "@/components/sensor-history-chart";
+import { SoilConditions } from "@/components/field-monitor/soil-conditions";
+import { IrrigationSupport } from "@/components/field-monitor/irrigation-support";
 import {
   fieldStatus,
   resetDemoReadings,
@@ -264,7 +266,7 @@ export default function Monitor() {
         ))}
       </div>
 
-      {message && (
+      {message && activeTab === "map" && (
         <div role="status">
           <EmptyState message={message} />
           {message === "No simulated sensor readings available yet" && (
@@ -465,187 +467,212 @@ export default function Monitor() {
               </div>
             </div>
           )}
-          {activeTab !== "map" && (
-            <p style={{ color: "#64748b", fontSize: "13px" }}>
-              This tab currently shows prototype sensor context only. Crop
-              health and pest prediction models are not connected.
-            </p>
-          )}
-          <div
-            className="responsive-grid responsive-grid-four"
-            style={{
-              display: "grid",
-
-              gap: "16px",
-            }}
-          >
-            {[
-              {
-                icon: Activity,
-                label: "Humidity",
-                val: latest ? `${latest.humidity}%` : "—",
-                status: latest ? latest.sensor_status : "Unavailable",
-                color: "#16a34a",
-                bg: "#dcfce7",
-              },
-              {
-                icon: Droplets,
-                label: "Soil Moisture",
-                val: latest ? `${latest.soil_moisture}%` : "—",
-                status: latest ? latest.sensor_status : "Unavailable",
-                color: "#3b82f6",
-                bg: "#dbeafe",
-              },
-              {
-                icon: Thermometer,
-                label: "Temperature",
-                val: latest ? `${latest.temperature}°C` : "—",
-                status: latest ? latest.sensor_status : "Unavailable",
-                color: "#f97316",
-                bg: "#ffedd5",
-              },
-              {
-                icon: Activity,
-                label: "Field Status",
-                val: status.label,
-                status: "Rule-based",
-                color: "#6366f1",
-                bg: "#e0e7ff",
-              },
-            ].map((s, i) => (
+          {activeTab === "map" && (
+            <>
               <div
-                key={i}
+                className="responsive-grid responsive-grid-four"
                 style={{
-                  padding: "16px",
-                  background: "white",
-                  borderRadius: "12px",
-                  border: "1px solid #e2e8f0",
-                  display: "flex",
-                  alignItems: "center",
+                  display: "grid",
+
                   gap: "16px",
                 }}
               >
-                <div
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "50%",
-                    background: s.bg,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <s.icon size={24} color={s.color} />
-                </div>
-                <div>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>
-                    {s.label}
-                  </div>
-                  <div style={{ fontSize: "18px", fontWeight: 600 }}>
-                    {s.val}
-                  </div>
+                {[
+                  {
+                    icon: Activity,
+                    label: "Humidity",
+                    val: latest ? `${latest.humidity}%` : "—",
+                    status: latest ? latest.sensor_status : "Unavailable",
+                    color: "#16a34a",
+                    bg: "#dcfce7",
+                  },
+                  {
+                    icon: Droplets,
+                    label: "Soil Moisture",
+                    val: latest ? `${latest.soil_moisture}%` : "—",
+                    status: latest ? latest.sensor_status : "Unavailable",
+                    color: "#3b82f6",
+                    bg: "#dbeafe",
+                  },
+                  {
+                    icon: Thermometer,
+                    label: "Temperature",
+                    val: latest ? `${latest.temperature}°C` : "—",
+                    status: latest ? latest.sensor_status : "Unavailable",
+                    color: "#f97316",
+                    bg: "#ffedd5",
+                  },
+                  {
+                    icon: Activity,
+                    label: "Field Status",
+                    val: status.label,
+                    status: "Rule-based",
+                    color: "#6366f1",
+                    bg: "#e0e7ff",
+                  },
+                ].map((s, i) => (
                   <div
+                    key={i}
                     style={{
-                      fontSize: "12px",
-                      color: s.color,
-                      fontWeight: 500,
+                      padding: "16px",
+                      background: "white",
+                      borderRadius: "12px",
+                      border: "1px solid #e2e8f0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "16px",
                     }}
                   >
-                    {s.status}
+                    <div
+                      style={{
+                        width: "48px",
+                        height: "48px",
+                        borderRadius: "50%",
+                        background: s.bg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <s.icon size={24} color={s.color} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "12px", color: "#64748b" }}>
+                        {s.label}
+                      </div>
+                      <div style={{ fontSize: "18px", fontWeight: 600 }}>
+                        {s.val}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          color: s.color,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {s.status}
+                      </div>
+                    </div>
                   </div>
+                ))}
+              </div>
+
+              <div
+                className="panel"
+                style={{
+                  padding: "24px",
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  background: "white",
+                  minWidth: 0,
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 600,
+                    marginBottom: "16px",
+                  }}
+                >
+                  Sensor History ·{" "}
+                  {latest?.source === "simulator"
+                    ? "Simulated IoT Data"
+                    : "Source: " + (latest?.source || "unavailable")}
+                </h2>
+                <div
+                  style={{ height: "260px", minWidth: 0 }}
+                  role="img"
+                  aria-label="Stored sensor history for selected farm"
+                >
+                  {readings.length ? (
+                    <SensorHistoryChart readings={readings} />
+                  ) : (
+                    <EmptyState
+                      message={
+                        message || "No simulated sensor readings available yet"
+                      }
+                    />
+                  )}
+                </div>
+                <div className="chart-legend">
+                  <span>
+                    <i style={{ background: "#258c43" }} />
+                    Soil Moisture (%)
+                  </span>
+                  <span>
+                    <i style={{ background: "#3488f6" }} />
+                    Temperature (°C)
+                  </span>
+                  <span>
+                    <i style={{ background: "#efb50d" }} />
+                    Humidity (%)
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div
-            className="panel"
-            style={{
-              padding: "24px",
-              borderRadius: "12px",
-              border: "1px solid #e2e8f0",
-              background: "white",
-              minWidth: 0,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                marginBottom: "16px",
-              }}
-            >
-              Sensor History ·{" "}
-              {latest?.source === "simulator"
-                ? "Simulated IoT Data"
-                : "Source: " + (latest?.source || "unavailable")}
-            </h2>
-            <div
-              style={{ height: "260px", minWidth: 0 }}
-              role="img"
-              aria-label="Stored sensor history for selected farm"
-            >
-              {readings.length ? (
-                <SensorHistoryChart readings={readings} />
-              ) : (
-                <EmptyState
-                  message={
-                    message || "No simulated sensor readings available yet"
-                  }
-                />
-              )}
-            </div>
-            <div className="chart-legend">
-              <span>
-                <i style={{ background: "#258c43" }} />
-                Soil Moisture (%)
-              </span>
-              <span>
-                <i style={{ background: "#3488f6" }} />
-                Temperature (°C)
-              </span>
-              <span>
-                <i style={{ background: "#efb50d" }} />
-                Humidity (%)
-              </span>
-            </div>
-          </div>
-          <div
-            className="panel"
-            style={{
-              padding: "24px",
-              borderRadius: "12px",
-              border: "1px solid #e2e8f0",
-              background: "white",
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "18px",
-                fontWeight: 600,
-                marginBottom: "16px",
-              }}
-            >
-              <Leaf size={20} color="#16a34a" /> Field Insights · Rule-based
-            </h2>
-            <p>
-              {status.label}: {status.detail}
-            </p>
-            {latest && (
-              <p
-                style={{ color: "#64748b", fontSize: "13px", marginTop: "8px" }}
+              <div
+                className="panel"
+                style={{
+                  padding: "24px",
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  background: "white",
+                }}
               >
-                Sensor quality: {latest.sensor_status}.{" "}
-                {latest.validation_issues.join(" · ")}
+                <h2
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 600,
+                    marginBottom: "16px",
+                  }}
+                >
+                  <Leaf size={20} color="#16a34a" /> Field Insights · Rule-based
+                </h2>
+                <p>
+                  {status.label}: {status.detail}
+                </p>
+                {latest && (
+                  <p
+                    style={{
+                      color: "#64748b",
+                      fontSize: "13px",
+                      marginTop: "8px",
+                    }}
+                  >
+                    Sensor quality: {latest.sensor_status}.{" "}
+                    {latest.validation_issues.join(" · ")}
+                  </p>
+                )}
+                <p
+                  style={{
+                    color: "#64748b",
+                    fontSize: "13px",
+                    marginTop: "8px",
+                  }}
+                >
+                  Basic moisture rules: below 20% Critical; below 30% or a drop
+                  of 6 points across recent readings Monitor. Prototype
+                  indicators, not AI predictions.
+                </p>
+              </div>
+            </>
+          )}
+          {activeTab === "soil" && (
+            <SoilConditions farm={selectedFarm} readings={readings} />
+          )}
+          {activeTab === "irrigation" && (
+            <IrrigationSupport farm={selectedFarm} readings={readings} />
+          )}
+          {(activeTab === "health" || activeTab === "pest") && (
+            <div className="panel" style={{ padding: "24px" }}>
+              <h2 style={{ fontSize: "18px", marginBottom: "8px" }}>
+                {activeTab === "health" ? "Crop Health" : "Pest Detection"}
+              </h2>
+              <p style={{ color: "#64748b", fontSize: "13px" }}>
+                This prototype module is not connected yet. Crop-health and pest
+                models are outside the current implementation step.
               </p>
-            )}
-            <p style={{ color: "#64748b", fontSize: "13px", marginTop: "8px" }}>
-              Basic moisture rules: below 20% Critical; below 30% or a drop of 6
-              points across recent readings Monitor. Prototype indicators, not
-              AI predictions.
-            </p>
-          </div>
+            </div>
+          )}
         </>
       }
     </div>
