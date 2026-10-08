@@ -166,7 +166,7 @@ function reading(farmId, moisture, quality = "healthy") {
       }
 
       if (width === 1024) {
-        await page.getByText("Sensor Issue", { exact: true }).waitFor();
+        await page.getByText("Sensor Issue", { exact: true }).first().waitFor();
       }
       if (width === 768) {
         failTick = true;

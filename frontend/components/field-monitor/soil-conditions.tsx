@@ -31,7 +31,7 @@ export function SoilConditions({
           }
         : {
             value: `${latest.soil_moisture}%`,
-            detail: `Simulated reading · ${latest.sensor_status}`,
+            detail: `Stored prototype reading · ${latest.sensor_status}`,
           }),
     },
     { label: "pH", ...displayTest(farm?.soil_ph) },

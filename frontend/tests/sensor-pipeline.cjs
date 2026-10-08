@@ -95,16 +95,19 @@ const reading = (farm, value) => ({
           .waitFor();
         mode = "ready";
         await scope
-          .getByText(/Simulated IoT Data/)
+          .getByText(
+            route === "field-monitor" ? /Prototype Data/ : /Simulated IoT Data/,
+          )
           .first()
           .waitFor({ timeout: 15000 });
         await scope.locator(".recharts-surface").first().waitFor();
         if (route === "field-monitor")
-          await scope.getByText("42%", { exact: true }).waitFor();
+          await scope.getByText("42%", { exact: true }).first().waitFor();
         second = true;
         if (route === "field-monitor")
           await scope
             .getByText("37%", { exact: true })
+            .first()
             .waitFor({ timeout: 15000 });
         else await page.waitForTimeout(5500);
         await page
@@ -116,7 +119,7 @@ const reading = (farm, value) => ({
           "Prior farm measurements leaked",
         );
         if (route === "field-monitor")
-          await scope.getByText("73%", { exact: true }).waitFor();
+          await scope.getByText("73%", { exact: true }).first().waitFor();
         else
           await scope
             .getByText(/Simulated IoT Data/)
@@ -127,6 +130,7 @@ const reading = (farm, value) => ({
         if (route === "field-monitor") {
           await scope
             .getByText("Sensor Issue", { exact: true })
+            .first()
             .waitFor({ timeout: 15000 });
           assert(!(await scope.getByText(/^Critical:/).count()));
         } else await page.waitForTimeout(5500);

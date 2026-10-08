@@ -2,6 +2,18 @@ import type { FarmProfile } from "@/types/farm-profile";
 import type { SensorReading } from "@/types/sensor";
 import type { WeatherResponse } from "@/types/weather";
 
+export const FIELD_RULES = {
+  criticalMoistureBelow: 20,
+  stressMoistureBelow: 30,
+  monitorMoistureBelow: 35,
+  highMoistureAbove: 80,
+  decliningPoints: 4,
+  highTemperatureAt: 35,
+  lowHumidityBelow: 40,
+  meaningfulRainAt: 50,
+  staleReadingAfterMs: 60_000,
+} as const;
+
 export function moistureTrend(readings: SensorReading[]) {
   const recent = readings
     .filter((reading) => reading.sensor_status === "healthy")
@@ -13,9 +25,9 @@ export function moistureTrend(readings: SensorReading[]) {
   );
   return {
     direction:
-      change <= -4
+      change <= -FIELD_RULES.decliningPoints
         ? ("declining" as const)
-        : change >= 4
+        : change >= FIELD_RULES.decliningPoints
           ? ("rising" as const)
           : ("stable" as const),
     change,
@@ -39,10 +51,13 @@ export function soilAssessment(
       detail: "Verify the sensor stream before assessing soil condition.",
       tone: "warning" as const,
     };
-  if (latest.soil_moisture < 30 || latest.soil_moisture > 80)
+  if (
+    latest.soil_moisture < FIELD_RULES.stressMoistureBelow ||
+    latest.soil_moisture > FIELD_RULES.highMoistureAbove
+  )
     return {
       label: "Needs attention",
-      detail: `Soil moisture is ${latest.soil_moisture < 30 ? "below" : "above"} the prototype monitoring range.`,
+      detail: `Soil moisture is ${latest.soil_moisture < FIELD_RULES.stressMoistureBelow ? "below" : "above"} the prototype monitoring range.`,
       tone: "warning" as const,
     };
   if (farm?.soil_ph != null && (farm.soil_ph < 5.5 || farm.soil_ph > 8))
@@ -131,9 +146,11 @@ export function irrigationAssessment({
       data,
     };
 
-  const meaningfulRain = rainChance >= 50;
-  const lowMoisture = latest.soil_moisture < 30;
-  const hotDrySupport = latest.temperature >= 35 || latest.humidity < 40;
+  const meaningfulRain = rainChance >= FIELD_RULES.meaningfulRainAt;
+  const lowMoisture = latest.soil_moisture < FIELD_RULES.stressMoistureBelow;
+  const hotDrySupport =
+    latest.temperature >= FIELD_RULES.highTemperatureAt ||
+    latest.humidity < FIELD_RULES.lowHumidityBelow;
 
   if (lowMoisture && !meaningfulRain)
     return {
@@ -141,7 +158,7 @@ export function irrigationAssessment({
       what: "Inspect irrigation need",
       why: "Soil moisture is low and meaningful rainfall is unlikely.",
       when:
-        latest.soil_moisture < 20
+        latest.soil_moisture < FIELD_RULES.criticalMoistureBelow
           ? "Inspect/irrigate soon"
           : "Inspect the field today",
       tone: "action" as const,
@@ -167,7 +184,7 @@ export function irrigationAssessment({
     };
   if (
     trend.direction === "declining" ||
-    latest.soil_moisture < 35 ||
+    latest.soil_moisture < FIELD_RULES.monitorMoistureBelow ||
     hotDrySupport
   )
     return {
