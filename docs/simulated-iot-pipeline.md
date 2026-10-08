@@ -5,6 +5,8 @@ The simulator uses HTTP → FastAPI → PostgreSQL → farm-specific history →
 ## Existing HTTP contract
 
 - `POST /api/sensors/readings` returns 201 with the stored reading and quality metadata.
+- `POST /api/sensors/simulate-tick` accepts `farm_id`, `field_id`, and `normal`, `water_stress`, or `sensor_failure`; it creates exactly one reading through the same validation/storage path.
+- `POST /api/sensors/reset-demo` deletes only `source=simulator` readings for the requested farm and field.
 - `GET /api/sensors/latest?farm_id=...&field_id=field-1` returns the newest capture timestamp; 404 when empty.
 - `GET /api/sensors/history?farm_id=...&field_id=field-1&limit=100` returns oldest-to-newest within the most recent limit; `[]` when empty. Limit 1–1000. Omitted field defaults to `field-1`.
 
@@ -26,6 +28,12 @@ Optional `timestamp` is an ISO 8601 capture time with timezone; omitted means se
 Impossible/non-finite values or malformed IDs/source/timestamps return 422 and are **not stored** (invalid status at ingestion). Stored data quality is healthy or suspicious. Suspicious values remain available for diagnostics. The dashboard reports Sensor Issue and withholds field recommendations for them.
 
 ## Simulation
+
+The Field Monitor page is the primary hackathon control. Start sends one tick immediately and the browser sends another about every five seconds. Stop clears that browser timer and preserves history. Navigating away or selecting another farm stops it. The backend starts no loop or background task, so this works with serverless requests.
+
+Each request locks the selected farm row for the transaction, reads that farm/field's recent simulator history, generates one continued value, and persists it through the existing sensor validation. The server keeps no simulation process state. Reset is deliberately narrow and cannot remove farms, weather readings, hardware-source readings, another field, or another farm.
+
+The standalone CLI remains available for development and imports the same shared simulator service:
 
 Run from the repository root with the backend running:
 

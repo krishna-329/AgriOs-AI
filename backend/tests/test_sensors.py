@@ -164,3 +164,96 @@ def test_future_hardware_uses_same_contract(client, demo_farm):
     result = client.post("/api/sensors/readings", json=data)
     assert result.status_code == 201 and result.json()["source"] == "esp32-prototype"
     assert result.json()["sensor_status"] == "healthy"
+
+
+def simulation_tick(client, farm_id, scenario="normal"):
+    return client.post("/api/sensors/simulate-tick", json={
+        "farm_id": farm_id,
+        "field_id": "field-1",
+        "scenario": scenario,
+    })
+
+
+def test_normal_tick_generation_and_repeated_persistence(client, session, demo_farm):
+    first = simulation_tick(client, demo_farm.id)
+    second = simulation_tick(client, demo_farm.id)
+    assert first.status_code == second.status_code == 201
+    assert first.json()["sensor_status"] == second.json()["sensor_status"] == "healthy"
+    assert 35 <= second.json()["soil_moisture"] <= 50
+    stored = session.scalars(select(SensorReading).where(
+        SensorReading.farm_id == demo_farm.id,
+        SensorReading.source == "simulator",
+    )).all()
+    assert len(stored) == 2
+
+
+def test_water_stress_tick_continuity(client, demo_farm):
+    start = simulation_tick(client, demo_farm.id).json()
+    values = [start]
+    for _ in range(7):
+        response = simulation_tick(client, demo_farm.id, "water_stress")
+        assert response.status_code == 201
+        values.append(response.json())
+    moisture = [item["soil_moisture"] for item in values]
+    assert all(moisture[index] < moisture[index - 1] for index in range(1, len(moisture)))
+    assert moisture[-1] < 22
+    assert values[-1]["temperature"] > values[0]["temperature"]
+    assert values[-1]["humidity"] < values[0]["humidity"]
+
+
+def test_sensor_failure_tick_is_flagged_by_existing_validation(client, demo_farm):
+    assert simulation_tick(client, demo_farm.id).json()["sensor_status"] == "healthy"
+    failure = simulation_tick(client, demo_farm.id, "sensor_failure")
+    assert failure.status_code == 201
+    assert failure.json()["sensor_status"] == "suspicious"
+    assert any("jump" in issue.lower() for issue in failure.json()["validation_issues"])
+    assert 0 <= failure.json()["soil_moisture"] <= 100
+
+
+def test_simulation_rejects_invalid_scenario_and_farm(client, demo_farm):
+    invalid_scenario = simulation_tick(client, demo_farm.id, "monsoon_magic")
+    assert invalid_scenario.status_code == 422
+    missing_farm = simulation_tick(client, "missing-farm")
+    assert missing_farm.status_code == 404
+
+
+def test_simulation_farm_isolation(client, session, demo_farm):
+    other = Farm(name="Isolated Farm")
+    session.add(other)
+    session.commit()
+    simulation_tick(client, demo_farm.id, "normal")
+    simulation_tick(client, other.id, "water_stress")
+    first_history = client.get("/api/sensors/history", params={"farm_id":demo_farm.id}).json()
+    other_history = client.get("/api/sensors/history", params={"farm_id":other.id}).json()
+    assert len(first_history) == len(other_history) == 1
+    assert {item["farm_id"] for item in first_history} == {demo_farm.id}
+    assert {item["farm_id"] for item in other_history} == {other.id}
+
+
+def test_reset_demo_readings_is_strictly_scoped(client, session, demo_farm):
+    other = Farm(name="Other Farm")
+    session.add(other)
+    session.commit()
+    simulation_tick(client, demo_farm.id)
+    simulation_tick(client, demo_farm.id)
+    simulation_tick(client, other.id)
+    hardware = client.post("/api/sensors/readings", json={
+        "farm_id": demo_farm.id,
+        "field_id": "field-1",
+        "soil_moisture": 43,
+        "temperature": 30,
+        "humidity": 64,
+        "source": "esp32-prototype",
+    })
+    assert hardware.status_code == 201
+    reset = client.post("/api/sensors/reset-demo", json={
+        "farm_id": demo_farm.id,
+        "field_id": "field-1",
+    })
+    assert reset.status_code == 200 and reset.json() == {"deleted_count": 2}
+    remaining = session.scalars(select(SensorReading)).all()
+    assert {(item.farm_id, item.source) for item in remaining} == {
+        (demo_farm.id, "esp32-prototype"),
+        (other.id, "simulator"),
+    }
+    assert session.get(Farm, demo_farm.id) is not None

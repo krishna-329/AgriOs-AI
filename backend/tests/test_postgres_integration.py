@@ -138,3 +138,28 @@ def test_postgres_quality_and_farm_isolation(pg_client, postgres_engine):
             assert len(session.scalars(select(SensorReading)).all()) == 2
     finally:
         fresh.dispose()
+
+
+def test_request_driven_simulation_persists_in_postgres(pg_client, postgres_engine):
+    farm = pg_client.post("/api/farms", json=profile()).json()
+    readings = []
+    for scenario in ["normal", "water_stress", "water_stress", "sensor_failure"]:
+        response = pg_client.post("/api/sensors/simulate-tick", json={
+            "farm_id": farm["id"], "field_id": "field-1", "scenario": scenario,
+        })
+        assert response.status_code == 201
+        readings.append(response.json())
+    assert readings[2]["soil_moisture"] < readings[1]["soil_moisture"]
+    assert readings[-1]["sensor_status"] == "suspicious"
+    engine, url = postgres_engine
+    engine.dispose()
+    fresh = build_engine(url)
+    try:
+        with Session(fresh) as session:
+            stored = session.scalars(select(SensorReading).where(
+                SensorReading.farm_id == farm["id"],
+                SensorReading.field_id == "field-1",
+            )).all()
+            assert len(stored) == 4
+    finally:
+        fresh.dispose()

@@ -54,6 +54,24 @@
 .reference-navbar .nav-menu-wrap {
   flex-shrink: 0;
 }
+.responsive-simulation-control {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px 18px;
+}
+.responsive-simulation-control .simulation-scenarios,
+.responsive-simulation-control .simulation-actions,
+.responsive-simulation-control .simulation-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.responsive-simulation-control .simulation-status {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
 
 @media (max-width: 1200px) {
   .responsive-grid-three,
@@ -76,6 +94,12 @@
     max-width: 95px;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .responsive-simulation-control {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .responsive-simulation-control .simulation-copy {
+    grid-column: 1 / -1;
   }
 }
 @media (max-width: 900px) {
@@ -237,6 +261,21 @@
   }
   .responsive-settings .farm-profile-actions {
     align-items: stretch;
+  }
+  .responsive-simulation-control {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .responsive-simulation-control .simulation-scenarios,
+  .responsive-simulation-control .simulation-actions {
+    flex-wrap: wrap;
+  }
+  .responsive-simulation-control .simulation-scenarios > button {
+    flex: 1 1 120px;
+  }
+  .responsive-simulation-control .simulation-actions > button:first-child {
+    flex: 1 1 160px;
   }
 }
 @media (max-width: 600px) {

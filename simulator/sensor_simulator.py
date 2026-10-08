@@ -4,7 +4,8 @@ import json
 import logging
 import math
 import os
-import random
+from pathlib import Path
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -13,34 +14,8 @@ from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
-
-class SensorSimulator:
-    def __init__(self, scenario="NORMAL", seed=42, failure="spike"):
-        self.scenario = "SENSOR_FAILURE" if scenario == "SENSOR_FAULT" else scenario
-        self.failure = failure
-        self.random = random.Random(seed)
-        self.step = 0
-        self.moisture, self.temperature, self.humidity = 42.0, 29.8, 67.0
-
-    def next_reading(self):
-        if self.step and self.scenario == "WATER_STRESS":
-            self.moisture = max(8, self.moisture - 3 + self.random.uniform(-0.2, 0.2))
-            self.temperature = min(40, self.temperature + 0.3 + self.random.uniform(-0.05, 0.05))
-            self.humidity = max(30, self.humidity - 0.8 + self.random.uniform(-0.1, 0.1))
-        elif self.scenario != "SENSOR_FAILURE" or self.failure != "frozen":
-            # Bounded smooth day-cycle proxy, with small reproducible noise.
-            phase = self.step / 30
-            self.moisture = 42 - 4 * math.sin(phase) + self.random.uniform(-0.08, 0.08)
-            self.temperature = 29.8 + 2 * math.sin(phase) + self.random.uniform(-0.05, 0.05)
-            self.humidity = 67 - 5 * math.sin(phase) + self.random.uniform(-0.1, 0.1)
-        result = dict(soil_moisture=round(self.moisture, 1), temperature=round(self.temperature, 1), humidity=round(self.humidity, 1))
-        if self.scenario == "SENSOR_FAILURE" and self.step >= 5 and self.step % 6 == 5:
-            if self.failure == "spike":
-                result["soil_moisture"] = 95.0  # In-range but implausible jump.
-            elif self.failure == "impossible":
-                result["temperature"] = 99.9  # Deliberately NOT clamped; API rejects.
-        self.step += 1
-        return result
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+from app.services.sensor_simulator import SensorSimulator  # noqa: E402
 
 
 def api_request(base, path, payload=None):

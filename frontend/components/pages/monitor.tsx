@@ -1,15 +1,98 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Droplets, Thermometer, Activity, Leaf } from "lucide-react";
 import { useSensorHistory } from "@/components/use-sensor-history";
 import { SensorHistoryChart } from "@/components/sensor-history-chart";
-import { fieldStatus } from "@/services/sensors";
+import {
+  fieldStatus,
+  resetDemoReadings,
+  simulateSensorTick,
+  type SimulationScenario,
+} from "@/services/sensors";
+import type { SensorReading } from "@/types/sensor";
 import { EmptyState } from "@/components/cards";
 
 export default function Monitor() {
-  const { readings, latest, message, selectedFarm } = useSensorHistory();
+  const { readings, latest, message, selectedFarm, refresh } =
+    useSensorHistory();
   const [activeTab, setActiveTab] = useState("map");
+  const [scenario, setScenario] = useState<SimulationScenario>("normal");
+  const [simulationState, setSimulationState] = useState<
+    "stopped" | "running" | "error" | "resetting"
+  >("stopped");
+  const [lastTick, setLastTick] = useState<SensorReading | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runningRef = useRef(false);
+  const tickInFlightRef = useRef(false);
+  const fieldId = "field-1";
   const status = fieldStatus(readings);
+
+  const stopSimulation = useCallback(() => {
+    runningRef.current = false;
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    setSimulationState("stopped");
+  }, []);
+
+  const generateTick = useCallback(async () => {
+    if (!selectedFarm?.id || tickInFlightRef.current) return;
+    tickInFlightRef.current = true;
+    try {
+      const reading = await simulateSensorTick(
+        selectedFarm.id,
+        fieldId,
+        scenario,
+      );
+      if (runningRef.current) {
+        setLastTick(reading);
+        await refresh();
+      }
+    } catch {
+      runningRef.current = false;
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+      setSimulationState("error");
+    } finally {
+      tickInFlightRef.current = false;
+    }
+  }, [refresh, scenario, selectedFarm?.id]);
+
+  const startSimulation = useCallback(() => {
+    if (!selectedFarm?.id || runningRef.current) return;
+    runningRef.current = true;
+    setLastTick(null);
+    setSimulationState("running");
+    void generateTick();
+    timerRef.current = setInterval(() => void generateTick(), 5000);
+  }, [generateTick, selectedFarm?.id]);
+
+  const resetReadings = useCallback(async () => {
+    if (!selectedFarm?.id) return;
+    stopSimulation();
+    setSimulationState("resetting");
+    try {
+      await resetDemoReadings(selectedFarm.id, fieldId);
+      setLastTick(null);
+      await refresh();
+      setSimulationState("stopped");
+    } catch {
+      setSimulationState("error");
+    }
+  }, [refresh, selectedFarm?.id, stopSimulation]);
+
+  useEffect(() => {
+    // Farm changes and page navigation stop the browser-owned timer. Any tick
+    // already in flight retains the farm ID captured when it began.
+    stopSimulation();
+    setLastTick(null);
+    return stopSimulation;
+  }, [selectedFarm?.id, stopSimulation]);
+
+  const scenarioLabels: Record<SimulationScenario, string> = {
+    normal: "Normal",
+    water_stress: "Water Stress",
+    sensor_failure: "Sensor Failure",
+  };
   return (
     <div
       className="page-container responsive-page responsive-monitor"
@@ -23,6 +106,124 @@ export default function Monitor() {
             : "Prototype sensor stream"}
         </p>
       </div>
+
+      <section
+        className="panel responsive-simulation-control"
+        aria-labelledby="demo-simulation-title"
+        style={{
+          padding: "16px 18px",
+          borderRadius: "12px",
+          border: "1px solid #dbe6dc",
+          background: "white",
+        }}
+      >
+        <div className="simulation-copy">
+          <h2 id="demo-simulation-title" style={{ fontSize: "16px" }}>
+            Demo Sensor Simulation
+          </h2>
+          <p style={{ color: "#64748b", fontSize: "13px" }}>
+            Simulated IoT Data · Prototype stream — no physical sensor connected
+          </p>
+        </div>
+        <div
+          className="simulation-scenarios"
+          role="group"
+          aria-label="Demo scenario"
+        >
+          {(Object.keys(scenarioLabels) as SimulationScenario[]).map(
+            (value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={scenario === value}
+                disabled={simulationState === "running"}
+                onClick={() => setScenario(value)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border:
+                    scenario === value
+                      ? "1px solid #15803d"
+                      : "1px solid #dbe3dc",
+                  background: scenario === value ? "#f0fdf4" : "white",
+                  color: scenario === value ? "#15803d" : "#475569",
+                  fontWeight: scenario === value ? 600 : 500,
+                  cursor: simulationState === "running" ? "default" : "pointer",
+                }}
+              >
+                {scenarioLabels[value]}
+              </button>
+            ),
+          )}
+        </div>
+        <div className="simulation-actions">
+          <button
+            type="button"
+            onClick={
+              simulationState === "running" ? stopSimulation : startSimulation
+            }
+            disabled={!selectedFarm?.id || simulationState === "resetting"}
+            style={{
+              padding: "9px 16px",
+              borderRadius: "8px",
+              border: "none",
+              background: simulationState === "running" ? "#b91c1c" : "#15803d",
+              color: "white",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {simulationState === "running"
+              ? "Stop Simulation"
+              : "Start Simulation"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void resetReadings()}
+            disabled={
+              !selectedFarm?.id ||
+              simulationState === "running" ||
+              simulationState === "resetting"
+            }
+            style={{
+              padding: "8px 10px",
+              border: "none",
+              background: "transparent",
+              color: "#64748b",
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+          >
+            {simulationState === "resetting"
+              ? "Resetting…"
+              : "Reset Demo Readings"}
+          </button>
+        </div>
+        <div
+          className="simulation-status"
+          role={simulationState === "error" ? "alert" : "status"}
+          aria-live="polite"
+          style={{ fontSize: "13px", color: "#475569" }}
+        >
+          {simulationState === "running" ? (
+            <>
+              <b style={{ color: "#15803d" }}>● Simulation running</b>
+              <span>{scenarioLabels[scenario]}</span>
+              <span>
+                {lastTick
+                  ? `Last reading: ${Math.max(0, Math.round((Date.now() - Date.parse(lastTick.recorded_at)) / 1000))} seconds ago`
+                  : "Generating first reading…"}
+              </span>
+            </>
+          ) : simulationState === "error" ? (
+            "Simulation temporarily unavailable"
+          ) : simulationState === "resetting" ? (
+            "Removing this field’s simulated readings…"
+          ) : (
+            "Simulation stopped"
+          )}
+        </div>
+      </section>
 
       <div
         className="responsive-tabs"

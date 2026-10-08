@@ -49,3 +49,32 @@ class SensorReadingResponse(SensorReadingBase):
     @property
     def timestamp(self) -> datetime:
         return self.recorded_at
+
+
+class SimulationTickCreate(BaseModel):
+    farm_id: str = Field(min_length=1, max_length=36)
+    field_id: str = Field(default="field-1", min_length=1, max_length=100)
+    scenario: Literal["normal", "water_stress", "sensor_failure"]
+
+    @field_validator("farm_id", "field_id")
+    @classmethod
+    def simulation_identifiers(cls, value):
+        if not value.strip():
+            raise ValueError("Must not be blank")
+        return value.strip()
+
+
+class DemoResetRequest(BaseModel):
+    farm_id: str = Field(min_length=1, max_length=36)
+    field_id: str = Field(default="field-1", min_length=1, max_length=100)
+
+    @field_validator("farm_id", "field_id")
+    @classmethod
+    def reset_identifiers(cls, value):
+        if not value.strip():
+            raise ValueError("Must not be blank")
+        return value.strip()
+
+
+class DemoResetResponse(BaseModel):
+    deleted_count: int = Field(ge=0)
