@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select, text, inspect, MetaData, Table, Column, String, JSON, DateTime
+from sqlalchemy import select, text, inspect, MetaData, Table, Column, String, JSON, DateTime, Float
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 import app.main as main_module
@@ -97,3 +97,44 @@ def test_additive_postgres_legacy_migration(postgres_engine):
         farm = session.get(Farm,"old-farm")
         assert farm.name == "Existing farm" and farm.area_acres == pytest.approx(4.9421076294)
         assert len(session.scalars(select(Farm)).all()) == 1
+
+
+def test_additive_sensor_metadata_preserves_old_measurements(postgres_engine):
+    engine, _ = postgres_engine
+    initialize_database(engine)
+    # Recreate only the sensor table inside the disposable fixture schema to
+    # represent the exact pre-Step-4 shape; no application data is touched.
+    with engine.begin() as connection:
+        connection.execute(text("DROP TABLE sensor_readings"))
+        connection.execute(text("CREATE TABLE sensor_readings (id VARCHAR(36) PRIMARY KEY, farm_id VARCHAR(36) NOT NULL REFERENCES farms(id), field_id VARCHAR(100) NOT NULL, soil_moisture FLOAT NOT NULL, temperature FLOAT NOT NULL, humidity FLOAT NOT NULL, source VARCHAR(50) NOT NULL, recorded_at TIMESTAMPTZ NOT NULL)"))
+        connection.execute(text("INSERT INTO sensor_readings VALUES ('old-reading','agrios-demo-farm','field-1',42,30,65,'simulator',CURRENT_TIMESTAMP)"))
+    initialize_database(engine)
+    initialize_database(engine)
+    with Session(engine) as session:
+        old = session.get(SensorReading, "old-reading")
+        assert old.soil_moisture == 42 and old.temperature == 30 and old.humidity == 65
+        assert old.sensor_status == "suspicious"
+        assert old.validation_issues == ["Legacy reading: quality not assessed"]
+
+
+def test_postgres_quality_and_farm_isolation(pg_client, postgres_engine):
+    farm = pg_client.post("/api/farms", json=profile()).json()
+    body = dict(farm_id=farm["id"],field_id="field-1",soil_moisture=42,temperature=30,humidity=65,source="simulator")
+    normal = pg_client.post("/api/sensors/readings", json=body).json()
+    assert normal["sensor_status"] == "healthy"
+    body["soil_moisture"] = 95
+    spike = pg_client.post("/api/sensors/readings", json=body).json()
+    assert spike["sensor_status"] == "suspicious" and spike["validation_issues"]
+    body["humidity"] = 105
+    assert pg_client.post("/api/sensors/readings", json=body).status_code == 422
+    assert pg_client.get("/api/sensors/history",params={"farm_id":"agrios-demo-farm"}).json() == []
+    engine, url = postgres_engine
+    engine.dispose()
+    fresh = build_engine(url)
+    try:
+        with Session(fresh) as session:
+            persisted = session.get(SensorReading,spike["id"])
+            assert persisted.sensor_status == "suspicious" and persisted.validation_issues == spike["validation_issues"]
+            assert len(session.scalars(select(SensorReading)).all()) == 2
+    finally:
+        fresh.dispose()

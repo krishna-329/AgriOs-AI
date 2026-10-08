@@ -24,6 +24,12 @@ def initialize_database(engine):
             # seeding. Released automatically on commit or startup failure.
             connection.execute(text("SELECT pg_advisory_xact_lock(731924680125)"))
         Base.metadata.create_all(connection)
+        sensor_columns = {column["name"] for column in inspect(connection).get_columns("sensor_readings")}
+        # Add only missing quality metadata; preserve measured values as-is.
+        if "sensor_status" not in sensor_columns:
+            connection.execute(text("ALTER TABLE sensor_readings ADD COLUMN sensor_status VARCHAR(20) NOT NULL DEFAULT 'suspicious'"))
+        if "validation_issues" not in sensor_columns:
+            connection.execute(text("ALTER TABLE sensor_readings ADD COLUMN validation_issues JSON NOT NULL DEFAULT '[\"Legacy reading: quality not assessed\"]'"))
         existing = {column["name"] for column in inspect(connection).get_columns("farms")}
         added = set(columns) - existing
         for name in sorted(added):

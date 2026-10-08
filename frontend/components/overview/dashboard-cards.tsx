@@ -1,5 +1,7 @@
 "use client";
 import { useWeather } from "@/components/weather-provider";
+import { useSensorHistory } from "@/components/use-sensor-history";
+import { SensorHistoryChart } from "@/components/sensor-history-chart";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -434,12 +436,12 @@ export function ResourceAllocationCard() {
   );
 }
 export function FieldMonitorChart() {
+  const { readings, latest, message } = useSensorHistory();
   const [metric, setMetric] = useState<OverviewMetric>("moisture");
   const [range, setRange] = useState("7");
-  const rows = farm.readings.slice(-Number(range)).map((r) => ({
-    day: r.day,
-    ...Object.fromEntries(r[metric].map((f) => [f.name, f.value])),
-  }));
+  const rows = readings.filter(
+    (r) => Date.parse(r.recorded_at) >= Date.now() - Number(range) * 86400000,
+  );
   const unit = metric === "temperature" ? "°C" : "%";
   return (
     <DashboardCard className="field-summary">
@@ -473,64 +475,38 @@ export function FieldMonitorChart() {
       <div
         className="reference-chart"
         role="img"
-        aria-label={`${metric} example history for three fields`}
+        aria-label={`${metric} stored sensor history for selected farm`}
       >
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={rows}
-            margin={{ left: -28, right: 8, top: 12, bottom: 0 }}
-          >
-            <CartesianGrid
-              vertical={false}
-              stroke="#e9eeed"
-              strokeDasharray="2 3"
-            />
-            <XAxis
-              dataKey="day"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 9, fill: "#77818d" }}
-            />
-            <YAxis
-              domain={metric === "temperature" ? [20, 40] : [0, 80]}
-              tickFormatter={(v) => `${v}${unit}`}
-              tick={{ fontSize: 9, fill: "#77818d" }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <Tooltip
-              contentStyle={{
-                fontSize: 11,
-                borderRadius: 8,
-                border: "1px solid #e5ebe6",
-              }}
-              formatter={(v, name) => [`${v}${unit}`, name]}
-            />
-            {["Field 1", "North Plot", "South Plot"].map((name, i) => (
-              <Line
-                key={name}
-                type="monotone"
-                dataKey={name}
-                stroke={["#258c43", "#3488f6", "#efb50d"][i]}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
-                isAnimationActive={false}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+        {message ? (
+          <p role="status">{message}</p>
+        ) : rows.length ? (
+          <SensorHistoryChart
+            readings={rows}
+            metric={metric === "moisture" ? "soil_moisture" : metric}
+          />
+        ) : (
+          <p>No simulated sensor readings available in this time range</p>
+        )}
       </div>
       <div className="chart-legend">
-        {["Field 1", "North Plot", "South Plot"].map((name, i) => (
-          <span key={name}>
-            <i style={{ background: ["#258c43", "#3488f6", "#efb50d"][i] }} />
-            {name}
-          </span>
-        ))}
+        <span>
+          <i
+            style={{
+              background:
+                metric === "moisture"
+                  ? "#258c43"
+                  : metric === "temperature"
+                    ? "#3488f6"
+                    : "#efb50d",
+            }}
+          />
+          Field 1 · {unit}
+        </span>
       </div>
       <small className="mock-footnote">
-        Simulated IoT Data · Historical example, not live devices
+        {latest
+          ? `${latest.source === "simulator" ? "Simulated IoT Data" : "Sensor data"} · Source: ${latest.source} · ${latest.sensor_status} · Recorded ${new Date(latest.recorded_at).toLocaleString()}`
+          : "Prototype sensor stream"}
       </small>
     </DashboardCard>
   );

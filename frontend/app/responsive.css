@@ -1,0 +1,248 @@
+/* Layout-only compatibility for module pages; original desktop colors and cards remain. */
+.responsive-page,
+.responsive-page > *,
+.responsive-grid > *,
+.responsive-split > * {
+  min-width: 0;
+}
+.responsive-page {
+  max-width: 100%;
+}
+.responsive-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.responsive-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.responsive-grid-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.responsive-split {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+}
+.responsive-split-wide {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+.responsive-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.responsive-tabs > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.responsive-line-chart {
+  display: block;
+  max-width: 100%;
+}
+.responsive-page img {
+  max-width: 100%;
+}
+.responsive-grid-four > div > div:first-child {
+  flex-shrink: 0;
+}
+.responsive-page :is(input, select, button) {
+  max-width: 100%;
+}
+.responsive-page-heading > div {
+  min-width: 0;
+}
+.reference-navbar .search-wrap {
+  min-width: 0;
+}
+.reference-navbar .nav-menu-wrap {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+  .responsive-grid-three,
+  .responsive-grid-four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1100px) {
+  .responsive-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .responsive-settings .farm-profile-panels.profile-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .responsive-donut-layout {
+    height: auto !important;
+    min-height: 260px;
+  }
+  .reference-navbar .navbar-weather small {
+    max-width: 95px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+@media (max-width: 900px) {
+  .responsive-page {
+    gap: 20px !important;
+  }
+  .responsive-field-map {
+    height: 360px !important;
+  }
+  .responsive-page :is(h1, h2, h3, p, label) {
+    overflow-wrap: anywhere;
+  }
+  .responsive-tabs {
+    gap: 16px !important;
+  }
+  .responsive-tabs > button {
+    min-height: 44px;
+  }
+  .responsive-chart-legend {
+    flex-wrap: wrap;
+    gap: 8px 16px !important;
+  }
+  .responsive-grid-four > div {
+    gap: 12px !important;
+  }
+  .reference-navbar .navbar-weather {
+    display: none;
+  }
+  .reference-navbar .location-select {
+    min-width: 0;
+  }
+  .reference-navbar .location-select select {
+    width: 160px;
+    max-width: 160px;
+  }
+}
+@media (max-width: 640px) {
+  /* Retain the existing mobile brand/actions and add one compact farm-context row. */
+  .reference-navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: 44px 40px;
+    height: auto;
+    padding: 6px 15px 8px;
+    gap: 0 12px;
+  }
+  .reference-navbar .mobile-brand {
+    grid-column: 1;
+    grid-row: 1;
+    margin-right: 0;
+    min-width: 0;
+  }
+  .reference-navbar .nav-menu-wrap {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .reference-navbar .nav-menu-wrap:last-child {
+    grid-column: 3;
+  }
+  .reference-navbar .location-select {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+  .reference-navbar .location-select select {
+    flex: 1;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    font-size: 12px;
+    padding: 9px 0;
+  }
+  .responsive-page {
+    padding-top: 20px;
+  }
+  .responsive-page-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .responsive-page-heading > :is(button, select) {
+    min-height: 42px;
+    width: auto;
+    flex-shrink: 0;
+  }
+  .responsive-page h1 {
+    font-size: 25px !important;
+  }
+  .responsive-page .panel {
+    padding: 18px !important;
+  }
+  .responsive-grid > div {
+    min-width: 0;
+  }
+  .responsive-grid > div[style*="padding: 24px"] {
+    padding: 18px !important;
+  }
+  .responsive-page input,
+  .responsive-page select {
+    min-height: 44px;
+    font-size: 14px !important;
+  }
+  .responsive-page button {
+    min-height: 40px;
+  }
+  .responsive-inline-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .responsive-inline-row h2 {
+    flex: 1 1 220px;
+  }
+  .responsive-page svg:not(.responsive-line-chart) {
+    flex-shrink: 0;
+  }
+  .responsive-field-map {
+    height: 300px !important;
+  }
+  .responsive-map-caption {
+    top: auto !important;
+    left: 14px !important;
+    bottom: 14px;
+    transform: none !important;
+  }
+  .responsive-map-legend {
+    top: 12px !important;
+    right: 12px !important;
+    padding: 10px !important;
+  }
+  .responsive-bar-group {
+    flex: 1;
+    min-width: 0;
+    max-width: 40px;
+    justify-content: center;
+  }
+  .responsive-bar-label {
+    white-space: normal !important;
+    width: 48px;
+    text-align: center;
+    font-size: 10px !important;
+    line-height: 1.15;
+    bottom: -30px !important;
+  }
+  .responsive-settings .profile-columns .farm-profile-grid,
+  .responsive-settings .farm-profile-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .responsive-settings .farm-profile-toolbar {
+    gap: 12px;
+  }
+  .responsive-settings .farm-profile-toolbar label {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+  .responsive-settings .farm-profile-tabs {
+    max-width: 100%;
+  }
+  .responsive-settings .farm-profile-actions {
+    align-items: stretch;
+  }
+}
+@media (max-width: 600px) {
+  .responsive-grid-two,
+  .responsive-grid-three,
+  .responsive-grid-four {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -30,7 +30,7 @@ export default function Planner() {
 
   return (
     <div
-      className="page-container"
+      className="page-container responsive-page responsive-planner"
       style={{ display: "flex", flexDirection: "column", gap: "24px" }}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -39,6 +39,7 @@ export default function Planner() {
       </div>
 
       <div
+        className="responsive-tabs"
         style={{
           display: "flex",
           gap: "24px",
@@ -78,9 +79,10 @@ export default function Planner() {
       {activeTab === "recommendation" && (
         <>
           <div
+            className="responsive-split"
             style={{
               display: "grid",
-              gridTemplateColumns: "1.5fr 1fr",
+
               gap: "24px",
             }}
           >
@@ -117,9 +119,10 @@ export default function Planner() {
               </p>
 
               <div
+                className="responsive-grid responsive-grid-two"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+
                   gap: "16px",
                   marginBottom: "24px",
                 }}
@@ -238,6 +241,7 @@ export default function Planner() {
                 }}
               >
                 <div
+                  className="responsive-inline-row"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -285,6 +289,7 @@ export default function Planner() {
                 </div>
 
                 <div
+                  className="responsive-inline-row"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -332,6 +337,7 @@ export default function Planner() {
                 </div>
 
                 <div
+                  className="responsive-inline-row"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -379,6 +385,7 @@ export default function Planner() {
                 </div>
 
                 <div
+                  className="responsive-inline-row"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -427,6 +434,7 @@ export default function Planner() {
           </div>
 
           <div
+            className="responsive-inline-row"
             style={{
               display: "flex",
               justifyContent: "space-between",
@@ -459,7 +467,7 @@ export default function Planner() {
             </a>
           </div>
 
-          <div className="three-column">
+          <div className="three-column responsive-grid responsive-grid-three">
             {data.crops.map((c) => (
               <div
                 key={c.id}
@@ -536,6 +544,7 @@ export default function Planner() {
                 </div>
 
                 <div
+                  className="responsive-inline-row"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",

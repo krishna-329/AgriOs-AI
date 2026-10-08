@@ -1,4 +1,8 @@
 import { FarmProfilePage } from "@/components/farm-profile-editor";
 export default function Settings() {
-  return <FarmProfilePage title="Settings" />;
+  return (
+    <div className="responsive-page responsive-settings">
+      <FarmProfilePage title="Settings" />
+    </div>
+  );
 }

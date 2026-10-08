@@ -54,4 +54,6 @@ class SensorReading(Base):
     temperature: Mapped[float] = mapped_column(Float)
     humidity: Mapped[float] = mapped_column(Float)
     source: Mapped[str] = mapped_column(String(50))
+    sensor_status: Mapped[str] = mapped_column(String(20), default="suspicious", server_default="suspicious")
+    validation_issues: Mapped[list] = mapped_column(JSON, default=lambda: ["Legacy reading: quality not assessed"], server_default='["Legacy reading: quality not assessed"]')
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
