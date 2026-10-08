@@ -1,2 +1,4 @@
-import { FarmProfilePage } from "@/components/farm-profile-form";
-export default function Page() { return <FarmProfilePage />; }
+import { FarmProfilePage } from "@/components/farm-profile-editor";
+export default function Page() {
+  return <FarmProfilePage />;
+}

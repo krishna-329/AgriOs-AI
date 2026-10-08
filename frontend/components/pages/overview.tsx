@@ -26,7 +26,19 @@ export function PageHeader() {
       <div>
         <h1>Farm Overview</h1>
         <p>
-          {selectedFarm ? [selectedFarm.name, selectedFarm.area_acres != null ? `${Number(selectedFarm.area_acres.toFixed(2))} acres` : null, selectedFarm.current_crop].filter(Boolean).join(" · ") : status === "loading" ? "Loading farm…" : "Set up or select your farm to get started."}
+          {selectedFarm
+            ? [
+                selectedFarm.name,
+                selectedFarm.area_acres != null
+                  ? `${Number(selectedFarm.area_acres.toFixed(2))} acres`
+                  : null,
+                selectedFarm.current_crop,
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : status === "loading"
+              ? "Loading farm…"
+              : "Set up or select your farm to get started."}
         </p>
       </div>
       <div className="landscape-message">

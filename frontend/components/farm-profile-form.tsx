@@ -1,101 +1,425 @@
 "use client";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useFarm } from "@/components/farm-provider";
-import { PageHeading } from "@/components/page-heading";
-import { FarmApiError } from "@/services/farms";
-import type { FarmProfile, FarmProfileInput } from "@/types/farm-profile";
+import { useState } from "react";
+import {
+  User,
+  Settings as SettingsIcon,
+  Bell,
+  Lock,
+  Link as LinkIcon,
+  Plus,
+} from "lucide-react";
+import { EmptyState } from "@/components/cards";
 
-type Field = { key: keyof FarmProfileInput; label: string; type?: "number" | "date"; min?: number; max?: number; options?: string[]; required?: boolean };
-const sections: { title: string; fields: Field[] }[] = [
-  { title: "Farm Identity", fields: [{ key: "name", label: "Farm name", required: true }, { key: "farmer_name", label: "Farmer name" }] },
-  { title: "Location", fields: [{ key: "location_name", label: "Location name" }, { key: "district", label: "District" }, { key: "state", label: "State" }, { key: "latitude", label: "Latitude", type: "number", min: -90, max: 90 }, { key: "longitude", label: "Longitude", type: "number", min: -180, max: 180 }] },
-  { title: "Farm Details", fields: [{ key: "area_acres", label: "Area (acres)", type: "number", min: 0.000001, max: 1000000 }, { key: "soil_type", label: "Soil type", options: ["Clay", "Loamy", "Sandy", "Silty", "Black", "Red", "Alluvial", "Other"] }, { key: "soil_ph", label: "Soil pH", type: "number", min: 0, max: 14 }, { key: "nitrogen", label: "Nitrogen (kg/ha)", type: "number", min: 0 }, { key: "phosphorus", label: "Phosphorus (kg/ha)", type: "number", min: 0 }, { key: "potassium", label: "Potassium (kg/ha)", type: "number", min: 0 }] },
-  { title: "Crop Details", fields: [{ key: "current_crop", label: "Current crop" }, { key: "crop_variety", label: "Variety" }, { key: "sowing_date", label: "Sowing date", type: "date" }] },
-  { title: "Resources", fields: [{ key: "irrigation_type", label: "Irrigation type", options: ["Borewell", "Drip", "Canal", "Sprinkler", "Rainfed", "Other"] }, { key: "water_availability", label: "Available water (m³)", type: "number", min: 0 }, { key: "budget", label: "Budget (₹)", type: "number", min: 0 }] },
-];
-type Values = Record<keyof FarmProfileInput, string>;
-function valuesFor(farm: FarmProfile | null): Values {
-  return Object.fromEntries(sections.flatMap(section => section.fields).map(field => [field.key, farm?.[field.key] == null ? "" : String(farm[field.key])])) as Values;
-}
-function Editor({ farm, onSaved, onCancel }: { farm: FarmProfile | null; onSaved: () => void; onCancel: () => void }) {
-  const { saveFarm, saving } = useFarm();
-  const [values, setValues] = useState<Values>(() => valuesFor(farm));
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState("");
-  const [dirty, setDirty] = useState(false);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setMessage("");
-    const found: Record<string, string> = {};
-    const data: Record<string, string | number | null> = {};
-    for (const { fields } of sections) for (const field of fields) {
-      const value = values[field.key].trim();
-      data[field.key] = value === "" ? null : field.type === "number" ? Number(value) : value;
-      if (field.required && !value) found[field.key] = "Farm name is required.";
-      if (value && field.type === "number") {
-        const number = Number(value);
-        if (!Number.isFinite(number) || (field.min !== undefined && number < field.min) || (field.max !== undefined && number > field.max)) found[field.key] = "Enter a value within the allowed range.";
-      }
-    }
-    if (Boolean(values.latitude.trim()) !== Boolean(values.longitude.trim())) {
-      found.latitude = found.longitude = "Enter both coordinates, or leave both blank.";
-    }
-    setErrors(found);
-    if (Object.keys(found).length) { setMessage("Please check the highlighted fields."); return; }
-    try {
-      await saveFarm(data as unknown as FarmProfileInput, farm?.id);
-      setDirty(false); onSaved();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save farm. Please try again.");
-      if (error instanceof FarmApiError) setErrors(error.fields);
-    }
-  }
-  return <form onSubmit={submit} className="farm-profile-form">
-    <p className="muted">Only farm name is required. Add both coordinates for local weather.</p>
-    {sections.map(section => <fieldset className="panel farm-profile-section" key={section.title} disabled={saving}>
-      <legend>{section.title}</legend>
-      <div className="farm-profile-grid">{section.fields.map(field => <label key={field.key} htmlFor={`farm-${field.key}`}>
-        {field.label}{field.required ? " *" : ""}
-        {field.options ? <select id={`farm-${field.key}`} value={values[field.key]} onChange={event => { setValues({ ...values, [field.key]: event.target.value }); setDirty(true); }} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined}>
-          <option value="">Not specified</option>
-          {values[field.key] && !field.options.includes(values[field.key]) && <option>{values[field.key]}</option>}
-          {field.options.map(option => <option key={option}>{option}</option>)}
-        </select> : <input id={`farm-${field.key}`} type={field.type || "text"} required={field.required} min={field.min} max={field.max} step={field.type === "number" ? "any" : undefined} maxLength={field.key === "location_name" ? 200 : 100} value={values[field.key]} onChange={event => { setValues({ ...values, [field.key]: event.target.value }); setDirty(true); }} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} />}
-        {errors[field.key] && <span className="farm-field-error" id={`error-${field.key}`}>{errors[field.key]}</span>}
-      </label>)}</div>
-    </fieldset>)}
-    {message && <p role="alert" className="farm-field-error">{message}{errors.form ? ` ${errors.form}` : ""}</p>}
-    <div className="farm-profile-actions">
-      <button className="button" disabled={saving} type="submit">{saving ? "Saving…" : farm ? "Save changes" : "Create farm"}</button>
-      <button className="button outline" disabled={saving} type="button" onClick={() => { setValues(valuesFor(farm)); setErrors({}); setMessage(""); setDirty(false); onCancel(); }}>Cancel</button>
-      <span className="muted" aria-live="polite">{saving ? "Saving to database…" : dirty ? "Unsaved changes" : ""}</span>
-    </div>
-  </form>;
-}
-export function FarmProfilePage({ initialCreate = false }: { initialCreate?: boolean }) {
-  const { farms, selectedFarm, selectFarm, status, error, reloadFarms, saving } = useFarm();
-  const [creating, setCreating] = useState(initialCreate);
-  const [saved, setSaved] = useState(false);
-  const newFarm = creating || (status === "ready" && !farms.length);
-  return <>
-    <PageHeading eyebrow="YOUR FARM" title={newFarm ? "Farm Setup" : "Edit Farm Profile"} description="Your farm details, saved for the decisions ahead." />
-    {status === "loading" ? <section className="panel" role="status">Loading farm profiles…</section> : status === "error" ? <section className="panel"><p role="alert">{error}</p><button className="button" onClick={reloadFarms}>Try again</button></section> : <>
-      <div className="panel farm-profile-toolbar">
-        <label htmlFor="profile-farm-selector">Selected farm<select id="profile-farm-selector" disabled={saving || !farms.length} value={selectedFarm?.id || ""} onChange={event => { selectFarm(event.target.value); setCreating(false); setSaved(false); }}>
-          {!farms.length && <option value="">No farms yet</option>}
-          {farms.map(farm => <option key={farm.id} value={farm.id}>{farm.name}{farm.location_name ? ` · ${farm.location_name}` : ""}</option>)}
-        </select></label>
-        <button className="button outline" disabled={saving || newFarm} onClick={() => { setCreating(true); setSaved(false); }}>Add farm</button>
-        <Link href="/overview" className="text-button">Back to overview →</Link>
+export function FarmProfilePage({
+  initialCreate,
+}: {
+  initialCreate?: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState("profile");
+
+  return (
+    <div
+      className="page-container"
+      style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <h1 style={{ fontSize: "28px", fontWeight: 600 }}>Settings</h1>
+        <p style={{ color: "#64748b" }}>
+          Manage your account and farm preferences.
+        </p>
       </div>
-      {saved && <p className="inline-feedback" role="status">Farm profile saved. Weather uses the selected farm’s coordinates.</p>}
-      <Editor key={newFarm ? "new" : selectedFarm?.id} farm={newFarm ? null : selectedFarm} onSaved={() => { setCreating(false); setSaved(true); }} onCancel={() => { setCreating(false); setSaved(false); }} />
-    </>}
-  </>;
+
+      <div
+        style={{
+          display: "flex",
+          gap: "24px",
+          borderBottom: "1px solid #e2e8f0",
+          marginBottom: "8px",
+        }}
+      >
+        {[
+          { id: "profile", label: "Profile" },
+          { id: "farm", label: "Farm Details" },
+          { id: "notifications", label: "Notifications" },
+          { id: "data", label: "Data & Privacy" },
+          { id: "integrations", label: "Integrations" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: "8px 4px",
+              borderBottom:
+                activeTab === tab.id
+                  ? "2px solid #16a34a"
+                  : "2px solid transparent",
+              color: activeTab === tab.id ? "#16a34a" : "#64748b",
+              fontWeight: activeTab === tab.id ? 600 : 400,
+              background: "none",
+              borderTop: "none",
+              borderLeft: "none",
+              borderRight: "none",
+              cursor: "pointer",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "profile" && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "24px",
+          }}
+        >
+          <div
+            className="panel"
+            style={{
+              padding: "24px",
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+              background: "white",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "16px",
+                fontWeight: 600,
+                margin: "0 0 24px 0",
+              }}
+            >
+              Profile Information
+            </h2>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "16px",
+                marginBottom: "32px",
+              }}
+            >
+              <div
+                style={{
+                  width: "64px",
+                  height: "64px",
+                  borderRadius: "50%",
+                  background: "#f1f5f9",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#64748b",
+                  fontWeight: 600,
+                  fontSize: "24px",
+                }}
+              >
+                RK
+              </div>
+              <button
+                style={{
+                  padding: "8px 16px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  background: "white",
+                  fontWeight: 500,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                Change Photo
+              </button>
+            </div>
+
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+            >
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <label
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#334155",
+                  }}
+                >
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  defaultValue="R. Karthikeyan"
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <label
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#334155",
+                  }}
+                >
+                  Email
+                </label>
+                <input
+                  type="email"
+                  defaultValue="karthikeyan@gmail.com"
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <label
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#334155",
+                  }}
+                >
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  defaultValue="+91 98765 43210"
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <label
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#334155",
+                  }}
+                >
+                  Role
+                </label>
+                <select
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                  }}
+                >
+                  <option>Farmer</option>
+                  <option>Expert</option>
+                </select>
+              </div>
+
+              <button
+                style={{
+                  background: "#16a34a",
+                  color: "white",
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  border: "none",
+                  fontWeight: 500,
+                  width: "100%",
+                  cursor: "pointer",
+                  marginTop: "12px",
+                }}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="panel"
+            style={{
+              padding: "24px",
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+              background: "white",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "16px",
+                fontWeight: 600,
+                margin: "0 0 24px 0",
+              }}
+            >
+              Farm Preferences
+            </h2>
+
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+            >
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <label
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#334155",
+                  }}
+                >
+                  Location
+                </label>
+                <input
+                  type="text"
+                  defaultValue="Ramanathapuram, Tamil Nadu"
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                  }}
+                />
+              </div>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <label
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#334155",
+                  }}
+                >
+                  Units
+                </label>
+                <select
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                  }}
+                >
+                  <option>Metric (Hectares, kg, °C)</option>
+                  <option>Imperial (Acres, lbs, °F)</option>
+                </select>
+              </div>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <label
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#334155",
+                  }}
+                >
+                  Language
+                </label>
+                <select
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid #cbd5e1",
+                    fontSize: "14px",
+                  }}
+                >
+                  <option>English</option>
+                  <option>Tamil</option>
+                  <option>Hindi</option>
+                </select>
+              </div>
+
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+              >
+                <label
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "#334155",
+                  }}
+                >
+                  Preferred Crops
+                </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "4px 8px",
+                      background: "#eff6ff",
+                      color: "#3b82f6",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Maize <span style={{ cursor: "pointer" }}>×</span>
+                  </span>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "4px 8px",
+                      background: "#eff6ff",
+                      color: "#3b82f6",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Red Gram <span style={{ cursor: "pointer" }}>×</span>
+                  </span>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "4px 8px",
+                      background: "#eff6ff",
+                      color: "#3b82f6",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    Cotton <span style={{ cursor: "pointer" }}>×</span>
+                  </span>
+                  <button
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "4px 8px",
+                      background: "#f1f5f9",
+                      color: "#64748b",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Plus size={14} /> Add Crop
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

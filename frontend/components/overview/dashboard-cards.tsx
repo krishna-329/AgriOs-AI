@@ -227,37 +227,119 @@ export function WeatherCard() {
     <DashboardCard className="weather-card">
       <SectionHeader title="Weather & Environment" icon={CloudSun} />
       {status !== "ready" || !weather ? (
-        <div className="weather-state" role={status === "error" ? "alert" : "status"} aria-live="polite">
+        <div
+          className="weather-state"
+          role={status === "error" ? "alert" : "status"}
+          aria-live="polite"
+        >
           <CloudSun size={40} />
-          <p>{status === "error" ? "Weather temporarily unavailable" : status === "missing-location" ? "Add farm coordinates to view weather" : "Loading weather…"}</p>
-          {status === "error" && <button type="button" onClick={retry}>Try again</button>}
-          {status === "missing-location" && <Link href="/farm-profile">Edit farm profile →</Link>}
+          <p>
+            {status === "error"
+              ? "Weather temporarily unavailable"
+              : status === "missing-location"
+                ? "Add farm coordinates to view weather"
+                : "Loading weather…"}
+          </p>
+          {status === "error" && (
+            <button type="button" onClick={retry}>
+              Try again
+            </button>
+          )}
+          {status === "missing-location" && (
+            <Link href="/farm-profile">Edit farm profile →</Link>
+          )}
         </div>
-      ) : <>
-        <div className="weather-overview">
-          <div className="weather-main"><CloudSun size={47} /><div><strong>{Math.round(weather.temperature)}°C</strong><span>{weather.condition}</span></div></div>
-          <div className="weather-facts">
-            <MetricItem icon={Droplets} label="Humidity" value={`${weather.humidity}%`} />
-            <MetricItem icon={CloudRain} label="Rain chance today" value={weather.rain_probability === null ? "Unavailable" : `${weather.rain_probability}%`} />
-            <MetricItem icon={Wind} label="Wind" value={`${weather.wind_speed} km/h`} />
+      ) : (
+        <>
+          <div className="weather-overview">
+            <div className="weather-main">
+              <CloudSun size={47} />
+              <div>
+                <strong>{Math.round(weather.temperature)}°C</strong>
+                <span>{weather.condition}</span>
+              </div>
+            </div>
+            <div className="weather-facts">
+              <MetricItem
+                icon={Droplets}
+                label="Humidity"
+                value={`${weather.humidity}%`}
+              />
+              <MetricItem
+                icon={CloudRain}
+                label="Rain chance today"
+                value={
+                  weather.rain_probability === null
+                    ? "Unavailable"
+                    : `${weather.rain_probability}%`
+                }
+              />
+              <MetricItem
+                icon={Wind}
+                label="Wind"
+                value={`${weather.wind_speed} km/h`}
+              />
+            </div>
           </div>
-        </div>
-        {weather.forecast.length ? <div className="forecast">
-          {weather.forecast.map(day => {
-            const date = new Date(`${day.date}T12:00:00Z`);
-            const rainy = /rain|drizzle|shower|thunder/i.test(day.condition);
-            return <div key={day.date} title={day.condition}>
-              <strong>{date.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</strong>
-              <small>{date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}</small>
-              {rainy ? <CloudRain size={19} /> : /clear/i.test(day.condition) ? <Sun size={19} /> : <CloudSun size={19} />}
-              <b>{Math.round(day.temperature_max)}°</b><span>{Math.round(day.temperature_min)}°</span>
-            </div>;
-          })}
-        </div> : <p className="weather-source">Forecast unavailable</p>}
-        <p className="weather-source">External near-live · <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">{weather.provider}</a> · Model estimate<br />
-          <time dateTime={weather.timestamp}>Updated {new Date(weather.timestamp).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: weather.timezone })}</time> ({weather.timezone})
-        </p>
-      </>}
+          {weather.forecast.length ? (
+            <div className="forecast">
+              {weather.forecast.map((day) => {
+                const date = new Date(`${day.date}T12:00:00Z`);
+                const rainy = /rain|drizzle|shower|thunder/i.test(
+                  day.condition,
+                );
+                return (
+                  <div key={day.date} title={day.condition}>
+                    <strong>
+                      {date.toLocaleDateString("en-GB", {
+                        weekday: "short",
+                        timeZone: "UTC",
+                      })}
+                    </strong>
+                    <small>
+                      {date.toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        timeZone: "UTC",
+                      })}
+                    </small>
+                    {rainy ? (
+                      <CloudRain size={19} />
+                    ) : /clear/i.test(day.condition) ? (
+                      <Sun size={19} />
+                    ) : (
+                      <CloudSun size={19} />
+                    )}
+                    <b>{Math.round(day.temperature_max)}°</b>
+                    <span>{Math.round(day.temperature_min)}°</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="weather-source">Forecast unavailable</p>
+          )}
+          <p className="weather-source">
+            External near-live ·{" "}
+            <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">
+              {weather.provider}
+            </a>{" "}
+            · Model estimate
+            <br />
+            <time dateTime={weather.timestamp}>
+              Updated{" "}
+              {new Date(weather.timestamp).toLocaleString("en-GB", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+                timeZone: weather.timezone,
+              })}
+            </time>{" "}
+            ({weather.timezone})
+          </p>
+        </>
+      )}
     </DashboardCard>
   );
 }
@@ -354,12 +436,10 @@ export function ResourceAllocationCard() {
 export function FieldMonitorChart() {
   const [metric, setMetric] = useState<OverviewMetric>("moisture");
   const [range, setRange] = useState("7");
-  const rows = farm.readings
-    .slice(-Number(range))
-    .map((r) => ({
-      day: r.day,
-      ...Object.fromEntries(r[metric].map((f) => [f.name, f.value])),
-    }));
+  const rows = farm.readings.slice(-Number(range)).map((r) => ({
+    day: r.day,
+    ...Object.fromEntries(r[metric].map((f) => [f.name, f.value])),
+  }));
   const unit = metric === "temperature" ? "°C" : "%";
   return (
     <DashboardCard className="field-summary">

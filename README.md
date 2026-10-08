@@ -33,11 +33,11 @@ Open http://localhost:3000 and backend OpenAPI at http://localhost:8000/docs.
 SQLite is the default local database (`backend/agrios.db`). Profiles survive restarts. The browser stores only the last farm ID. Authentication is not implemented; keep this development instance on localhost and use demo profiles.
 
 ## PostgreSQL
-Start `docker compose up -d db`, then set the environment variable before launching the backend:
-```powershell
-$env:DATABASE_URL='postgresql+psycopg://agrios:agrios@localhost:5432/agrios'
-```
-`.env.example` documents environment variables; the backend reads process environment, not the example file. For a frontend API override, put `NEXT_PUBLIC_API_URL` in `frontend/.env.local`. Startup creates initial tables; introduce Alembic before schema evolution. SQLite data is not automatically migrated to PostgreSQL.
+Production requires an environment-provided `DATABASE_URL` pointing to persistent PostgreSQL with `sslmode=require` (or certificate verification). Standard provider `postgres://` and `postgresql://` URLs are normalized to the installed psycopg 3 driver. SQLite is only a local-development fallback. No database credentials are included in source.
+
+For local Docker PostgreSQL, provide your own `LOCAL_POSTGRES_PASSWORD` before starting Compose. `backend/.env.example` documents development defaults. Actual values come from environment variables or `backend/.env`; example files are not loaded. PostgreSQL initialization is atomic and serialized with a transaction advisory lock. The existing schema is preserved and missing legacy columns are added. SQLite data is not automatically transferred to PostgreSQL.
+
+See [production stabilization and UI deployment steps](docs/production-stabilization.md).
 
 ## Verify
 ```powershell
@@ -47,4 +47,4 @@ cd ../frontend
 npm run typecheck
 npm run build
 ```
-See docs/architecture.md, docs/api.md, docs/models.md and docs/datasets.md for the phased plan. PostgreSQL and future module behavior require separate verification.
+See docs/architecture.md, docs/api.md, docs/models.md and docs/datasets.md for the phased plan. Real PostgreSQL persistence, concurrency, migration, API and browser checks are recorded in docs/production-stabilization.md.

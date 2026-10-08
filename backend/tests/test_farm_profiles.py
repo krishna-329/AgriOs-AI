@@ -91,3 +91,19 @@ def test_no_demo_insertion_when_non_demo_farm_exists(farm_client):
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(Farm)) == 1
         assert session.get(Farm, DEMO_FARM_ID) is None
+
+def test_legacy_get_is_explicit_for_new_optional_profile(farm_client):
+    client, _ = farm_client
+    farm = client.post("/api/farms", json={"name":"New optional profile"}).json()
+    assert client.get(f"/api/v1/farms/{farm['id']}").status_code == 409
+
+def test_database_error_is_sanitized(farm_client):
+    from sqlalchemy.exc import OperationalError
+    client, _ = farm_client
+    def broken_session():
+        raise OperationalError("private connection details", {}, Exception("secret"))
+        yield
+    app.dependency_overrides[get_session] = broken_session
+    result = client.get("/api/farms")
+    assert result.status_code == 503
+    assert "secret" not in result.text

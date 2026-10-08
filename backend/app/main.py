@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.routes import router
 from app.api.weather import router as weather_router
+from app.api.sensors import router as sensors_router
 from app.db.database import engine
 from app.db.bootstrap import initialize_database
 
@@ -15,9 +16,11 @@ logging.basicConfig(level=settings.log_level, format="%(asctime)s %(levelname)s 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if settings.database_url == "sqlite:////tmp/agrios.db":
-        logging.getLogger(__name__).warning("Demo storage is ephemeral on Vercel; configure DATABASE_URL for persistent history")
-    initialize_database(engine)
+    try:
+        initialize_database(engine)
+    except SQLAlchemyError as exc:
+        logging.getLogger(__name__).error("Database initialization failed (%s); verify DATABASE_URL, TLS and database access", type(exc).__name__)
+        raise RuntimeError("Database initialization failed; check backend configuration") from None
     yield
 
 app = FastAPI(title="AgriOS AI", version="0.2.0", lifespan=lifespan)
@@ -25,6 +28,7 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_me
 app.include_router(router)
 app.include_router(weather_router)
 app.include_router(farms_router)
+app.include_router(sensors_router)
 
 @app.get("/health")
 def health():

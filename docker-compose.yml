@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: agrios
       POSTGRES_USER: agrios
-      POSTGRES_PASSWORD: agrios
+      POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD:?Set LOCAL_POSTGRES_PASSWORD for the local database}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:

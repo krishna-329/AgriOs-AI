@@ -44,3 +44,14 @@ class WeatherReading(Base):
     condition: Mapped[str] = mapped_column(String(100))
     source: Mapped[str] = mapped_column(String(50))
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+class SensorReading(Base):
+    __tablename__ = "sensor_readings"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    farm_id: Mapped[str] = mapped_column(ForeignKey("farms.id"), index=True)
+    field_id: Mapped[str] = mapped_column(String(100), index=True)
+    soil_moisture: Mapped[float] = mapped_column(Float)
+    temperature: Mapped[float] = mapped_column(Float)
+    humidity: Mapped[float] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(50))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)

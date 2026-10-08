@@ -102,7 +102,13 @@ export function Sidebar({
 export function TopNavbar({ onMenu }: { onMenu: () => void }) {
   const [query, setQuery] = useState("");
   const { weather, status } = useWeather();
-  const { farms, selectedFarm, selectFarm, status: farmStatus, saving } = useFarm();
+  const {
+    farms,
+    selectedFarm,
+    selectFarm,
+    status: farmStatus,
+    saving,
+  } = useFarm();
   const [popover, setPopover] = useState<string | null>(null);
   const results = navigation.filter((n) =>
     `${n.label} ${n.href}`.toLowerCase().includes(query.toLowerCase()),
@@ -151,18 +157,37 @@ export function TopNavbar({ onMenu }: { onMenu: () => void }) {
         <select
           aria-label="Selected farm"
           value={selectedFarm?.id || ""}
-          onChange={event => selectFarm(event.target.value)}
+          onChange={(event) => selectFarm(event.target.value)}
           disabled={farmStatus !== "ready" || saving || !farms.length}
         >
-          {!selectedFarm && <option value="">{farmStatus === "loading" ? "Loading farms…" : farmStatus === "error" ? "Farms unavailable" : "No farms yet"}</option>}
-          {farms.map(item => <option key={item.id} value={item.id}>{item.name}{item.location_name ? ` · ${item.location_name}` : ""}</option>)}
+          {!selectedFarm && (
+            <option value="">
+              {farmStatus === "loading"
+                ? "Loading farms…"
+                : farmStatus === "error"
+                  ? "Farms unavailable"
+                  : "No farms yet"}
+            </option>
+          )}
+          {farms.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+              {item.location_name ? ` · ${item.location_name}` : ""}
+            </option>
+          ))}
         </select>
       </label>
       <div className="navbar-weather">
         <CloudSun size={29} />
         <span>
           <b>{weather ? `${Math.round(weather.temperature)}°C` : "—"}</b>
-          <small>{weather ? weather.condition : status === "loading" ? "Loading weather…" : "Weather unavailable"}</small>
+          <small>
+            {weather
+              ? weather.condition
+              : status === "loading"
+                ? "Loading weather…"
+                : "Weather unavailable"}
+          </small>
         </span>
       </div>
       <div className="nav-menu-wrap">
@@ -204,7 +229,13 @@ export function TopNavbar({ onMenu }: { onMenu: () => void }) {
           aria-expanded={popover === "profile"}
           onClick={() => setPopover(popover === "profile" ? null : "profile")}
         >
-          <span className="farmer-avatar">{selectedFarm?.farmer_name?.split(/\s+/).map(part => part[0]).slice(0, 2).join("") || "—"}</span>
+          <span className="farmer-avatar">
+            {selectedFarm?.farmer_name
+              ?.split(/\s+/)
+              .map((part) => part[0])
+              .slice(0, 2)
+              .join("") || "—"}
+          </span>
           <span className="profile-name">
             <strong>{selectedFarm?.farmer_name || "Farm profile"}</strong>
             <small>Farmer</small>
