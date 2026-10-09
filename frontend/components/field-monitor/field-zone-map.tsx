@@ -17,6 +17,7 @@ const statuses: FieldZoneStatus[] = [
   "Stress",
   "Critical",
   "Sensor Issue",
+  "Awaiting Data",
 ];
 
 function farmContext(farm: FarmProfile | null) {
@@ -106,53 +107,35 @@ export function FieldZoneMap({
               className="field-boundary"
               d="M18 22 L248 7 L497 24 L740 13 L724 344 L493 357 L247 360 L13 336 Z"
             />
-            {zones.length ? (
-              zones.map((zone) => (
-                <g
-                  key={zone.id}
-                  className={`field-zone ${selected?.id === zone.id ? "is-selected" : ""}`}
-                  role="button"
-                  tabIndex={0}
-                  data-zone-id={zone.id}
-                  data-zone-status={zone.status}
-                  aria-label={`${zone.label}, ${zone.status}, soil moisture ${zone.moisture}%`}
-                  aria-pressed={selected?.id === zone.id}
-                  onClick={() => setSelectedId(zone.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setSelectedId(zone.id);
-                    }
-                  }}
-                >
-                  <path
-                    d={zone.path}
-                    fill={FIELD_ZONE_COLORS[zone.status]}
-                    filter="url(#field-shadow)"
-                  />
-                  <path d={zone.path} fill="url(#field-lines)" />
-                  <text x={zone.labelX} y={zone.labelY} textAnchor="middle">
-                    {zone.label.replace("Zone ", "")}
-                  </text>
-                </g>
-              ))
-            ) : (
-              <g className="field-zones-empty" aria-hidden="true">
-                {[
-                  "M36 36 L247 24 L260 166 L44 181 Z",
-                  "M267 25 L484 43 L467 172 L264 166 Z",
-                  "M491 45 L726 31 L710 185 L472 173 Z",
-                  "M45 188 L259 172 L249 342 L30 324 Z",
-                  "M264 173 L468 179 L487 338 L255 343 Z",
-                  "M473 180 L710 192 L730 322 L493 338 Z",
-                ].map((path) => (
-                  <path key={path} d={path} />
-                ))}
-                <text x="380" y="190" textAnchor="middle">
-                  Waiting for sensor data
+            {zones.map((zone) => (
+              <g
+                key={zone.id}
+                className={`field-zone ${selected?.id === zone.id ? "is-selected" : ""}`}
+                role="button"
+                tabIndex={0}
+                data-zone-id={zone.id}
+                data-zone-status={zone.status}
+                aria-label={`${zone.label}, ${zone.status}${zone.moisture == null ? "" : `, soil moisture ${zone.moisture}%`}`}
+                aria-pressed={selected?.id === zone.id}
+                onClick={() => setSelectedId(zone.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedId(zone.id);
+                  }
+                }}
+              >
+                <path
+                  d={zone.path}
+                  fill={FIELD_ZONE_COLORS[zone.status]}
+                  filter="url(#field-shadow)"
+                />
+                <path d={zone.path} fill="url(#field-lines)" />
+                <text x={zone.labelX} y={zone.labelY} textAnchor="middle">
+                  {zone.label.replace("Zone ", "")}
                 </text>
               </g>
-            )}
+            ))}
           </svg>
           <div
             className="field-zone-legend"
@@ -168,7 +151,7 @@ export function FieldZoneMap({
         </div>
 
         <aside className="field-zone-details" aria-live="polite">
-          {selected ? (
+          {selected && (
             <>
               <div className="field-zone-detail-title">
                 <div>
@@ -186,25 +169,39 @@ export function FieldZoneMap({
                 <div>
                   <Droplets size={17} />
                   <span>Soil Moisture</span>
-                  <strong>{selected.moisture}%</strong>
+                  <strong>
+                    {selected.moisture == null ? "--" : `${selected.moisture}%`}
+                  </strong>
+                  {selected.sensorQuality != null &&
+                    selected.sensorQuality !== "healthy" && (
+                      <em>⚠ Unreliable reading</em>
+                    )}
                 </div>
                 <div>
                   <Thermometer size={17} />
                   <span>Temperature</span>
-                  <strong>{selected.temperature}°C</strong>
+                  <strong>
+                    {selected.temperature == null
+                      ? "--"
+                      : `${selected.temperature}°C`}
+                  </strong>
                 </div>
                 <div>
                   <Activity size={17} />
                   <span>Humidity</span>
-                  <strong>{selected.humidity}%</strong>
+                  <strong>
+                    {selected.humidity == null ? "--" : `${selected.humidity}%`}
+                  </strong>
                 </div>
                 <div>
                   <MapPin size={17} />
                   <span>Sensor Quality</span>
                   <strong>
-                    {selected.sensorQuality === "healthy"
-                      ? "Healthy"
-                      : "Needs verification"}
+                    {selected.sensorQuality == null
+                      ? "--"
+                      : selected.sensorQuality === "healthy"
+                        ? "Healthy"
+                        : "Needs verification"}
                   </strong>
                 </div>
               </div>
@@ -223,15 +220,12 @@ export function FieldZoneMap({
                 </div>
               </dl>
               <p className="field-zone-updated">
-                Last updated {new Date(selected.lastUpdated).toLocaleString()}
+                Last updated{" "}
+                {selected.lastUpdated
+                  ? new Date(selected.lastUpdated).toLocaleString()
+                  : "--"}
               </p>
             </>
-          ) : (
-            <div className="field-zone-no-data">
-              <Activity size={24} />
-              <h3>No current zone status</h3>
-              <p>No simulated sensor readings available yet.</p>
-            </div>
           )}
         </aside>
       </div>

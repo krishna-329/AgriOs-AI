@@ -138,7 +138,9 @@ function reading(farmId, moisture, quality = "healthy") {
         element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       });
-      await page.getByText("● Simulation running", { exact: true }).waitFor();
+      await page
+        .getByText(`● ${scenario} • Running`, { exact: true })
+        .waitFor();
       await page.waitForTimeout(400);
       assert.equal(ticks["farm-a"], 1, `duplicate initial tick at ${width}px`);
 

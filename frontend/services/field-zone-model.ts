@@ -2,7 +2,12 @@ import { FIELD_RULES, moistureTrend } from "@/services/field-monitor-rules";
 import type { SensorReading } from "@/types/sensor";
 
 export type FieldZoneStatus =
-  "Healthy" | "Monitor" | "Stress" | "Critical" | "Sensor Issue";
+  | "Healthy"
+  | "Monitor"
+  | "Stress"
+  | "Critical"
+  | "Sensor Issue"
+  | "Awaiting Data";
 
 export type FieldZone = {
   id: string;
@@ -11,11 +16,11 @@ export type FieldZone = {
   labelX: number;
   labelY: number;
   status: FieldZoneStatus;
-  moisture: number;
-  temperature: number;
-  humidity: number;
-  sensorQuality: SensorReading["sensor_status"];
-  lastUpdated: string;
+  moisture: number | null;
+  temperature: number | null;
+  humidity: number | null;
+  sensorQuality: SensorReading["sensor_status"] | null;
+  lastUpdated: string | null;
   reason: string;
   action: string;
   timing: string;
@@ -101,6 +106,7 @@ export const FIELD_ZONE_COLORS: Record<FieldZoneStatus, string> = {
   Stress: "#f97316",
   Critical: "#dc2626",
   "Sensor Issue": "#7c3aed",
+  "Awaiting Data": "#94a3b8",
 };
 
 function clamp(value: number, minimum: number, maximum: number) {
@@ -131,9 +137,12 @@ function explainZone({
   if (!sensorHealthy)
     return {
       status: "Sensor Issue",
-      reason:
-        validationIssues[0] ||
-        "The latest field reading is unreliable, so zone conditions cannot be assessed.",
+      reason: validationIssues.some(
+        (issue) => issue.includes("soil_moisture") && issue.includes("jump"),
+      )
+        ? "Sudden soil-moisture jump detected. Verify the sensor."
+        : validationIssues[0]?.replaceAll("_", " ") ||
+          "The latest field reading is unreliable. Verify the sensor.",
       action: "Verify the sensor stream before acting on these values.",
       timing: "Before the next field decision",
     };
@@ -204,7 +213,19 @@ export function deriveIllustrativeZones(
   readings: SensorReading[],
 ): FieldZone[] {
   const latest = readings.at(-1);
-  if (!latest) return [];
+  if (!latest)
+    return ZONE_TEMPLATES.map((template) => ({
+      ...template,
+      status: "Awaiting Data",
+      moisture: null,
+      temperature: null,
+      humidity: null,
+      sensorQuality: null,
+      lastUpdated: null,
+      reason: "No current sensor reading is available for this field.",
+      action: "Start the prototype sensor stream to assess current conditions.",
+      timing: "When a new reading is available",
+    }));
   const declining = moistureTrend(readings).direction === "declining";
   const stale =
     Date.now() - Date.parse(latest.recorded_at) >
@@ -242,10 +263,10 @@ export function deriveIllustrativeZones(
 }
 
 export function aggregateFieldStatus(zones: FieldZone[]) {
-  if (!zones.length)
+  if (!zones.length || zones.every((zone) => zone.status === "Awaiting Data"))
     return {
-      label: "Unavailable" as const,
-      detail: "No simulated sensor readings available yet",
+      label: "Awaiting Data" as const,
+      detail: "No current sensor reading is available for this field.",
     };
   const counts = (status: FieldZoneStatus) =>
     zones.filter((zone) => zone.status === status).length;
@@ -253,7 +274,7 @@ export function aggregateFieldStatus(zones: FieldZone[]) {
     return {
       label: "Sensor Issue" as const,
       detail:
-        "The current field stream is unreliable, so all illustrative zone estimates are withheld.",
+        "The current field stream is unreliable, so illustrative zones show Sensor Issue instead of crop condition status.",
     };
   if (counts("Critical"))
     return {

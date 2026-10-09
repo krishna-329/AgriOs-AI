@@ -119,11 +119,23 @@ function reading(moisture, quality = "healthy", index = 0) {
                   )
                 : reading(42, "healthy", stored[body.farm_id].length);
           stored[body.farm_id].push(next);
+          await new Promise((resolve) => setTimeout(resolve, 180));
           return route.fulfill({
             status: 201,
             headers,
             contentType: "application/json",
             body: JSON.stringify(next),
+          });
+        }
+        if (url.pathname === "/api/sensors/reset-demo") {
+          const body = request.postDataJSON();
+          const deleted_count = stored[body.farm_id].length;
+          stored[body.farm_id] = [];
+          return route.fulfill({
+            status: 200,
+            headers,
+            contentType: "application/json",
+            body: JSON.stringify({ deleted_count }),
           });
         }
         if (url.pathname === "/api/weather")
@@ -153,6 +165,25 @@ function reading(moisture, quality = "healthy", index = 0) {
         await page.locator('[data-zone-status="Healthy"]').count(),
         6,
       );
+      assert.equal(
+        await page.locator(".field-zone").evaluateAll((zones) => {
+          const map = zones[0]?.closest("svg")?.getBoundingClientRect();
+          return Boolean(
+            map &&
+            zones.every((zone) => {
+              const box = zone.getBoundingClientRect();
+              return (
+                box.top >= map.top - 1 &&
+                box.left >= map.left - 1 &&
+                box.bottom <= map.bottom + 1 &&
+                box.right <= map.right + 1
+              );
+            }),
+          );
+        }),
+        true,
+        `not all zones fit inside the map at ${width}px`,
+      );
       await page.getByRole("button", { name: /^Zone B,/ }).click();
       await page
         .locator(".field-zone-details h3", { hasText: "Zone B" })
@@ -172,9 +203,22 @@ function reading(moisture, quality = "healthy", index = 0) {
           .getByRole("button", { name: "Water Stress", exact: true })
           .click();
         await page
+          .getByText("Applying Water Stress scenario…", { exact: true })
+          .waitFor();
+        await page
           .getByRole("button", { name: "Start Simulation", exact: true })
           .click();
+        await page
+          .getByText("● Water Stress • Running", { exact: true })
+          .waitFor();
+        await page.getByText(/Next update: ~\d+s/).waitFor();
         await page.locator('[data-zone-status="Stress"]').first().waitFor();
+        assert.equal(
+          await page
+            .getByText("Applying Water Stress scenario…", { exact: true })
+            .count(),
+          0,
+        );
         await page.getByText("Stress", { exact: true }).first().waitFor();
         await page.waitForTimeout(5200);
         await page.locator('[data-zone-status="Critical"]').first().waitFor();
@@ -186,6 +230,9 @@ function reading(moisture, quality = "healthy", index = 0) {
           .getByRole("button", { name: "Sensor Failure", exact: true })
           .click();
         await page
+          .getByText("Applying Sensor Failure scenario…", { exact: true })
+          .waitFor();
+        await page
           .getByRole("button", { name: "Start Simulation", exact: true })
           .click();
         await page
@@ -196,6 +243,70 @@ function reading(moisture, quality = "healthy", index = 0) {
           await page.locator('[data-zone-status="Sensor Issue"]').count(),
           6,
         );
+        await page.getByRole("button", { name: /^Zone A,/ }).click();
+        await page
+          .locator(".field-zone-details")
+          .getByText("⚠ Unreliable reading", { exact: true })
+          .waitFor();
+        await page
+          .getByText("Sudden soil-moisture jump detected. Verify the sensor.", {
+            exact: true,
+          })
+          .waitFor();
+        await page.getByText("Needs verification", { exact: true }).waitFor();
+        await page.screenshot({
+          path: "../.runtime/field-zone-failure-1440.png",
+          fullPage: true,
+        });
+        await page
+          .getByRole("button", { name: "Stop Simulation", exact: true })
+          .click();
+
+        await page
+          .getByRole("button", { name: "Reset Demo Readings", exact: true })
+          .click();
+        await page
+          .locator('[data-zone-status="Awaiting Data"]')
+          .first()
+          .waitFor();
+        assert.equal(
+          await page.locator('[data-zone-status="Awaiting Data"]').count(),
+          6,
+        );
+        await page.getByRole("button", { name: /^Zone D,/ }).click();
+        await page
+          .getByText("No current sensor reading is available for this field.", {
+            exact: true,
+          })
+          .first()
+          .waitFor();
+        assert.equal(
+          await page
+            .locator(".field-zone-values strong")
+            .evaluateAll((values) =>
+              values.every((value) => value.textContent?.trim() === "--"),
+            ),
+          true,
+          "empty zones retained stale measurements",
+        );
+        assert.equal(await page.getByText("95%", { exact: true }).count(), 0);
+        await page.screenshot({
+          path: "../.runtime/field-zone-empty-1440.png",
+          fullPage: true,
+        });
+
+        await page.getByRole("button", { name: "Normal", exact: true }).click();
+        await page
+          .getByText("Applying Normal scenario…", { exact: true })
+          .waitFor();
+        await page
+          .getByRole("button", { name: "Start Simulation", exact: true })
+          .click();
+        await page.locator('[data-zone-status="Healthy"]').first().waitFor();
+        assert.equal(
+          await page.locator('[data-zone-status="Healthy"]').count(),
+          6,
+        );
         await page
           .getByRole("button", { name: "Stop Simulation", exact: true })
           .click();
@@ -203,12 +314,12 @@ function reading(moisture, quality = "healthy", index = 0) {
         const selector = page.locator('select[aria-label="Selected farm"]');
         await selector.selectOption("farm-b");
         await page.getByRole("heading", { name: "Empty Farm" }).waitFor();
-        await page
-          .getByText("No simulated sensor readings available yet.", {
-            exact: true,
-          })
-          .waitFor();
-        assert.equal(await page.locator(".field-zone").count(), 0);
+        assert.equal(await page.locator(".field-zone").count(), 6);
+        assert.equal(
+          await page.locator('[data-zone-status="Awaiting Data"]').count(),
+          6,
+        );
+        assert.equal(await page.getByText("42%", { exact: true }).count(), 0);
 
         await page
           .getByRole("button", { name: "Soil Conditions", exact: true })
@@ -222,6 +333,26 @@ function reading(moisture, quality = "healthy", index = 0) {
         await page
           .getByRole("heading", { name: "Irrigation Support", exact: true })
           .waitFor();
+      } else {
+        const selector = page.locator('select[aria-label="Selected farm"]');
+        await selector.selectOption("farm-b");
+        await page
+          .locator('[data-zone-status="Awaiting Data"]')
+          .first()
+          .waitFor();
+        assert.equal(
+          await page.locator('[data-zone-status="Awaiting Data"]').count(),
+          6,
+        );
+        await page.getByRole("button", { name: /^Zone F,/ }).click();
+        await page
+          .locator(".field-zone-details h3", { hasText: "Zone F" })
+          .waitFor();
+        if (width === 390)
+          await page.screenshot({
+            path: "../.runtime/field-zone-empty-390.png",
+            fullPage: true,
+          });
       }
 
       assert.equal(
@@ -230,6 +361,15 @@ function reading(moisture, quality = "healthy", index = 0) {
         ),
         true,
         `horizontal overflow at ${width}px`,
+      );
+      assert.equal(
+        await page
+          .locator(".simulation-status")
+          .evaluate(
+            (element) => element.scrollWidth <= element.clientWidth + 1,
+          ),
+        true,
+        `simulation status overflow at ${width}px`,
       );
       assert.deepEqual(errors, []);
       console.log(`PASS field-zone map ${width}px`);

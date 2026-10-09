@@ -243,6 +243,12 @@
   flex-wrap: wrap;
   gap: 6px 14px;
 }
+.responsive-simulation-control .simulation-status > * {
+  white-space: nowrap;
+}
+.scenario-transition {
+  color: #b45309;
+}
 .field-monitor-subheading {
   display: flex;
   align-items: center;
@@ -341,7 +347,8 @@
 .field-overall-sensor-issue strong {
   color: #6d28d9;
 }
-.field-overall-unavailable strong {
+.field-overall-unavailable strong,
+.field-overall-awaiting-data strong {
   color: #64748b;
 }
 .field-zone-layout {
@@ -352,6 +359,7 @@
 }
 .field-zone-visual {
   min-width: 0;
+  overflow: hidden;
   padding: 14px;
   border: 1px solid #d8e4da;
   border-radius: 12px;
@@ -367,7 +375,7 @@
   display: block;
   width: 100%;
   height: auto;
-  min-height: 250px;
+  aspect-ratio: 760 / 370;
 }
 .field-boundary {
   fill: #b8aa82;
@@ -407,16 +415,6 @@
   pointer-events: none;
   stroke: rgba(15, 23, 42, 0.42);
   stroke-width: 3px;
-}
-.field-zones-empty path {
-  fill: #d6ddd4;
-  stroke: white;
-  stroke-width: 4;
-}
-.field-zones-empty text {
-  fill: #64748b;
-  font-size: 20px;
-  font-weight: 700;
 }
 .field-zone-legend {
   display: flex;
@@ -501,6 +499,14 @@
   overflow-wrap: anywhere;
   font-size: 12px;
 }
+.field-zone-values em {
+  grid-column: 2;
+  color: #6d28d9;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.25;
+}
 .field-zone-guidance {
   display: flex;
   flex-direction: column;
@@ -540,23 +546,6 @@
 .field-zone-overall-detail {
   margin-top: 4px;
   color: #475569;
-}
-.field-zone-no-data {
-  display: grid;
-  min-height: 100%;
-  place-content: center;
-  justify-items: center;
-  text-align: center;
-  color: #64748b;
-}
-.field-zone-no-data h3 {
-  margin-top: 8px;
-  color: #334155;
-  font-size: 16px;
-}
-.field-zone-no-data p {
-  margin-top: 4px;
-  font-size: 12px;
 }
 
 @media (max-width: 1200px) {
@@ -810,9 +799,6 @@
   }
   .field-zone-visual {
     padding: 8px;
-  }
-  .field-zone-visual svg {
-    min-height: 175px;
   }
   .field-zone-details {
     padding: 14px;

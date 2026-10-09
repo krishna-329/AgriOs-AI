@@ -27,49 +27,85 @@ export default function Monitor() {
     "stopped" | "running" | "error" | "resetting"
   >("stopped");
   const [lastTick, setLastTick] = useState<SensorReading | null>(null);
+  const [applyingScenario, setApplyingScenario] =
+    useState<SimulationScenario | null>(null);
+  const [nextTickAt, setNextTickAt] = useState<number | null>(null);
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const runningRef = useRef(false);
   const tickInFlightRef = useRef(false);
+  const scenarioRef = useRef<SimulationScenario>("normal");
   const fieldId = "field-1";
   const status = aggregateFieldStatus(deriveIllustrativeZones(readings));
+  const displayedReading = lastTick || latest;
+  const lastReadingAge = displayedReading
+    ? Math.max(
+        0,
+        Math.floor(
+          (clockNow - Date.parse(displayedReading.recorded_at)) / 1000,
+        ),
+      )
+    : null;
+  const nextUpdateIn =
+    nextTickAt == null
+      ? null
+      : Math.max(0, Math.ceil((nextTickAt - clockNow) / 1000));
+  const sensorUnreliable = latest != null && latest.sensor_status !== "healthy";
 
   const stopSimulation = useCallback(() => {
     runningRef.current = false;
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = null;
+    setApplyingScenario(null);
+    setNextTickAt(null);
     setSimulationState("stopped");
   }, []);
 
-  const generateTick = useCallback(async () => {
-    if (!selectedFarm?.id || tickInFlightRef.current) return;
-    tickInFlightRef.current = true;
-    try {
-      const reading = await simulateSensorTick(
-        selectedFarm.id,
-        fieldId,
-        scenario,
-      );
-      if (runningRef.current) {
-        setLastTick(reading);
-        await refresh();
+  const generateTick = useCallback(
+    async (requestedScenario?: SimulationScenario) => {
+      if (!selectedFarm?.id || tickInFlightRef.current) return;
+      const tickScenario = requestedScenario || scenarioRef.current;
+      tickInFlightRef.current = true;
+      try {
+        const reading = await simulateSensorTick(
+          selectedFarm.id,
+          fieldId,
+          tickScenario,
+        );
+        if (runningRef.current) {
+          setLastTick(reading);
+          await refresh();
+          setApplyingScenario((current) =>
+            current === tickScenario ? null : current,
+          );
+        }
+      } catch {
+        runningRef.current = false;
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+        setApplyingScenario(null);
+        setNextTickAt(null);
+        setSimulationState("error");
+      } finally {
+        tickInFlightRef.current = false;
       }
-    } catch {
-      runningRef.current = false;
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = null;
-      setSimulationState("error");
-    } finally {
-      tickInFlightRef.current = false;
-    }
-  }, [refresh, scenario, selectedFarm?.id]);
+    },
+    [refresh, selectedFarm?.id],
+  );
 
   const startSimulation = useCallback(() => {
     if (!selectedFarm?.id || runningRef.current) return;
     runningRef.current = true;
-    setLastTick(null);
+    const startedAt = Date.now();
+    const requestedScenario = scenarioRef.current;
+    setApplyingScenario(requestedScenario);
+    setNextTickAt(startedAt + 5000);
     setSimulationState("running");
-    void generateTick();
-    timerRef.current = setInterval(() => void generateTick(), 5000);
+    void generateTick(requestedScenario);
+    timerRef.current = setInterval(() => {
+      setNextTickAt(Date.now() + 5000);
+      void generateTick();
+    }, 5000);
   }, [generateTick, selectedFarm?.id]);
 
   const resetReadings = useCallback(async () => {
@@ -79,6 +115,7 @@ export default function Monitor() {
     try {
       await resetDemoReadings(selectedFarm.id, fieldId);
       setLastTick(null);
+      setApplyingScenario(null);
       await refresh();
       setSimulationState("stopped");
     } catch {
@@ -91,13 +128,25 @@ export default function Monitor() {
     // already in flight retains the farm ID captured when it began.
     stopSimulation();
     setLastTick(null);
+    setApplyingScenario(null);
     return stopSimulation;
   }, [selectedFarm?.id, stopSimulation]);
+
+  useEffect(() => {
+    setClockNow(Date.now());
+    const clock = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => clearInterval(clock);
+  }, []);
 
   const scenarioLabels: Record<SimulationScenario, string> = {
     normal: "Normal",
     water_stress: "Water Stress",
     sensor_failure: "Sensor Failure",
+  };
+  const chooseScenario = (value: SimulationScenario) => {
+    scenarioRef.current = value;
+    setScenario(value);
+    setApplyingScenario(value);
   };
   return (
     <div
@@ -152,8 +201,8 @@ export default function Monitor() {
                 key={value}
                 type="button"
                 aria-pressed={scenario === value}
-                disabled={simulationState === "running"}
-                onClick={() => setScenario(value)}
+                disabled={simulationState === "resetting"}
+                onClick={() => chooseScenario(value)}
                 style={{
                   padding: "8px 12px",
                   borderRadius: "8px",
@@ -164,7 +213,8 @@ export default function Monitor() {
                   background: scenario === value ? "#f0fdf4" : "white",
                   color: scenario === value ? "#15803d" : "#475569",
                   fontWeight: scenario === value ? 600 : 500,
-                  cursor: simulationState === "running" ? "default" : "pointer",
+                  cursor:
+                    simulationState === "resetting" ? "default" : "pointer",
                 }}
               >
                 {scenarioLabels[value]}
@@ -221,22 +271,36 @@ export default function Monitor() {
           aria-live="polite"
           style={{ fontSize: "13px", color: "#475569" }}
         >
+          {applyingScenario && (
+            <strong className="scenario-transition">
+              Applying {scenarioLabels[applyingScenario]} scenario…
+            </strong>
+          )}
           {simulationState === "running" ? (
             <>
-              <b style={{ color: "#15803d" }}>● Simulation running</b>
-              <span>{scenarioLabels[scenario]}</span>
+              <b style={{ color: "#15803d" }}>
+                ● {scenarioLabels[scenario]} • Running
+              </b>
               <span>
-                {lastTick
-                  ? `Last reading: ${Math.max(0, Math.round((Date.now() - Date.parse(lastTick.recorded_at)) / 1000))} seconds ago`
-                  : "Generating first reading…"}
+                {lastReadingAge == null
+                  ? "Waiting for first reading"
+                  : `Last reading: ${lastReadingAge}s ago`}
               </span>
+              <span>Next update: ~{nextUpdateIn ?? 0}s</span>
             </>
           ) : simulationState === "error" ? (
             "Simulation temporarily unavailable"
           ) : simulationState === "resetting" ? (
             "Removing this field’s simulated readings…"
           ) : (
-            "Simulation stopped"
+            <>
+              <b>Simulation stopped</b>
+              <span>
+                {lastReadingAge == null
+                  ? "No current reading"
+                  : `Last reading: ${lastReadingAge}s ago`}
+              </span>
+            </>
           )}
         </div>
       </section>
@@ -308,25 +372,37 @@ export default function Monitor() {
                     icon: Activity,
                     label: "Humidity",
                     val: latest ? `${latest.humidity}%` : "—",
-                    status: latest ? latest.sensor_status : "Unavailable",
-                    color: "#16a34a",
-                    bg: "#dcfce7",
+                    status: latest
+                      ? sensorUnreliable
+                        ? "⚠ Unreliable reading"
+                        : "Healthy reading"
+                      : "Awaiting data",
+                    color: sensorUnreliable ? "#7c3aed" : "#16a34a",
+                    bg: sensorUnreliable ? "#ede9fe" : "#dcfce7",
                   },
                   {
                     icon: Droplets,
                     label: "Soil Moisture",
                     val: latest ? `${latest.soil_moisture}%` : "—",
-                    status: latest ? latest.sensor_status : "Unavailable",
-                    color: "#3b82f6",
-                    bg: "#dbeafe",
+                    status: latest
+                      ? sensorUnreliable
+                        ? "⚠ Unreliable reading"
+                        : "Healthy reading"
+                      : "Awaiting data",
+                    color: sensorUnreliable ? "#7c3aed" : "#3b82f6",
+                    bg: sensorUnreliable ? "#ede9fe" : "#dbeafe",
                   },
                   {
                     icon: Thermometer,
                     label: "Temperature",
                     val: latest ? `${latest.temperature}°C` : "—",
-                    status: latest ? latest.sensor_status : "Unavailable",
-                    color: "#f97316",
-                    bg: "#ffedd5",
+                    status: latest
+                      ? sensorUnreliable
+                        ? "⚠ Unreliable reading"
+                        : "Healthy reading"
+                      : "Awaiting data",
+                    color: sensorUnreliable ? "#7c3aed" : "#f97316",
+                    bg: sensorUnreliable ? "#ede9fe" : "#ffedd5",
                   },
                   {
                     icon: Activity,
@@ -462,7 +538,9 @@ export default function Monitor() {
                     }}
                   >
                     Sensor quality: {latest.sensor_status}.{" "}
-                    {latest.validation_issues.join(" · ")}
+                    {latest.validation_issues
+                      .map((issue) => issue.replaceAll("_", " "))
+                      .join(" · ")}
                   </p>
                 )}
                 <p
